@@ -170,11 +170,11 @@ input, textarea { -webkit-user-select: text; user-select: text; font: inherit; c
   <p class="head-lb"><span>2. 売上と照合</span></p>
   <div class="list">
     <div class="row">
-      <div class="n">釣銭準備金<small>開店時にレジへ入れた額</small></div>
+      <div class="n">釣銭準備金<small>開店時にレジへ入れた額（全端末で共有）</small></div>
       <input class="money" id="float" type="text" inputmode="numeric" placeholder="0" autocomplete="off">
     </div>
     <div class="row">
-      <div class="n">レジから出した額<small>中間回収・買い出し・両替差など</small></div>
+      <div class="n">レジから出した額<small>中間回収・買い出しなど（全端末で共有）</small></div>
       <input class="money" id="out" type="text" inputmode="numeric" placeholder="0" autocomplete="off">
     </div>
     <div class="row">
@@ -388,11 +388,13 @@ async function syncHistory() {
   try {
     // 1) この端末にだけある記録を先に送る（古い順）
     for (const h of st.history.filter(x => !x.synced).reverse()) { await post({ action: 'tenkenAdd', item: h }); h.synced = true; }
+    await pushShared();
     // 2) 全端末分の一覧を受け取る
     const r = await fetch(GAS_URL + '?action=tenken&key=' + encodeURIComponent(key) + '&t=' + Date.now());
     const j = await r.json();
     if (j && j.error === 'auth') { logout('パスワードが違います。もう一度ログインしてください'); throw new Error('auth'); }
     if (!j || !j.ok || !Array.isArray(j.items)) throw new Error('bad response');
+    applyShared(j.shared);
     const items = j.items.map(normItem).filter(Boolean), ids = new Set(items.map(x => x.id));
     const pending = st.history.filter(x => !x.synced && !ids.has(x.id));   // 同期中に増えた分は残す
     st.history = pending.concat(items).sort((a, b) => b.ts - a.ts);
@@ -400,6 +402,27 @@ async function syncHistory() {
   } catch (e) { syncState = 'err'; }
   syncing = false; save(); renderHistory();
 }
+// 釣銭準備金・レジから出した額は全端末で共有する（最後に入力した端末の値が有効）
+async function pushShared() {
+  if (!st.sharedDirty) return;
+  const f = st.float, o = st.out;
+  const j = await post({ action: 'tenkenSet', float: f, out: o });
+  if (st.float === f && st.out === o) st.sharedDirty = false;       // 送信中にさらに書き換えられていたら次回もう一度送る
+  if (j.shared) st.sharedAt = Number(j.shared.at) || 0;
+  save();
+}
+function applyShared(sh) {
+  if (!sh || typeof sh !== 'object') return;
+  const at = Number(sh.at) || 0, ae = document.activeElement;
+  if (!at) { if (st.float || st.out) { st.sharedDirty = true; clearTimeout(sharedT); sharedT = setTimeout(syncHistory, 300); } return; }   // サーバが未設定ならこの端末の値を送る
+  if (st.sharedDirty || at === st.sharedAt || (ae && (ae.id === 'float' || ae.id === 'out'))) return;   // 入力中・未送信の間は上書きしない
+  const num = v => { const n = Math.round(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
+  st.float = num(sh.float); st.out = num(sh.out); st.sharedAt = at;
+  $('#float').value = st.float ? st.float.toLocaleString('ja-JP') : '';
+  $('#out').value = st.out ? st.out.toLocaleString('ja-JP') : '';
+  save(); calc();
+}
+let sharedT = 0;
 const newId = () => { const a = new Uint32Array(3); crypto.getRandomValues(a); return Array.from(a, x => x.toString(36)).join(''); };
 
 // ---------- 操作 ----------
@@ -432,9 +455,13 @@ $('#denoms').addEventListener('focusin', e => { if (e.target.classList.contains(
 
 [['float', 'float'], ['out', 'out'], ['sales', 'sales']].forEach(([id, key]) => {
   const el = $('#' + id);
-  el.addEventListener('input', () => { st[key] = int(el.value); if (key === 'sales') st.salesSrc = 'manual'; save(); calc(); });
+  el.addEventListener('input', () => {
+    st[key] = int(el.value); if (key === 'sales') st.salesSrc = 'manual';
+    else { st.sharedDirty = true; clearTimeout(sharedT); sharedT = setTimeout(syncHistory, 1200); }   // 入力が止まったら共有
+    save(); calc();
+  });
   el.addEventListener('focus', () => { el.value = st[key] ? String(st[key]) : ''; el.select(); });
-  el.addEventListener('blur', () => { el.value = st[key] ? st[key].toLocaleString('ja-JP') : ''; });
+  el.addEventListener('blur', () => { el.value = st[key] ? st[key].toLocaleString('ja-JP') : ''; if (st.sharedDirty) syncHistory(); });
 });
 $('#staff').addEventListener('input', e => { st.staff = e.target.value.slice(0, 20); save(); });
 $('#memo').addEventListener('input', e => { st.memo = e.target.value.slice(0, 100); save(); });
