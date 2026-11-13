@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="販売管理">
+<title>チュロス販売 管理</title>
+<style>
+:root {
+  --bg: #F2F2F7; --surface: #FFFFFF; --surface-2: #F2F2F7;
+  --separator: rgba(60,60,67,0.20); --fill: rgba(120,120,128,0.12);
+  --label: #000000; --label-2: rgba(60,60,67,0.60); --label-3: rgba(60,60,67,0.30);
+  --accent: #007AFF; --red: #FF3B30; --green: #34C759; --orange: #FF9500;
+  --r-sm: 8px; --r-md: 10px; --r-lg: 14px; --r-xl: 22px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px; --sp-8: 32px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.08);
+  --ease: cubic-bezier(0.32, 0.72, 0, 1); --dur: 280ms;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000; --surface: #1C1C1E; --surface-2: #2C2C2E;
+    --separator: rgba(84,84,88,0.65); --fill: rgba(120,120,128,0.24);
+    --label: #FFFFFF; --label-2: rgba(235,235,245,0.60); --label-3: rgba(235,235,245,0.30);
+    --accent: #0A84FF; --red: #FF453A; --green: #30D158; --orange: #FF9F0A;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.5);
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; font-family: var(--font); font-size: 17px; line-height: 1.47; color: var(--label);
+  background: var(--bg); -webkit-font-smoothing: antialiased;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+.ic { width: 20px; height: 20px; flex: none; display: block; }
+.num { font-variant-numeric: tabular-nums; }
+.wrap { max-width: 760px; margin: 0 auto; }
+
+/* ナビ */
+.nav { position: sticky; top: 0; z-index: 10; padding-top: env(safe-area-inset-top);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+.nav-in { max-width: 760px; margin: 0 auto; padding: var(--sp-3) var(--sp-4) var(--sp-3); }
+.nav-top { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-3); }
+.nav h1 { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.lock-btn { width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: none;
+  color: var(--label-2); cursor: pointer; margin-right: -8px; }
+.lock-btn:active { opacity: 0.4; }
+.home-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--r-md);
+  background: var(--fill); color: var(--label-2); flex: none; text-decoration: none; }
+.home-btn:active { opacity: 0.4; }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--label-2); min-height: 32px; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--label-3); }
+.live.ok i { background: var(--green); }
+.live.err i { background: var(--red); }
+.seg-wrap { overflow-x: auto; margin-top: var(--sp-3); scrollbar-width: none; }
+.seg-wrap::-webkit-scrollbar { display: none; }
+.seg { display: inline-flex; padding: 2px; background: var(--fill); border-radius: 9px; }
+.seg button { min-height: 32px; padding: 0 var(--sp-4); border: 0; border-radius: 7px; white-space: nowrap;
+  background: none; font: inherit; font-size: 13px; font-weight: 590; color: var(--label); cursor: pointer;
+  transition: background var(--dur) var(--ease); }
+.seg button[aria-selected="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
+/* グループ */
+.group { margin: var(--sp-4) var(--sp-4) var(--sp-8); }
+.group-head { display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 13px; color: var(--label-2); margin: 0 var(--sp-3) var(--sp-2); }
+.list { background: var(--surface); border-radius: var(--r-lg); overflow: hidden; }
+.row { width: 100%; min-height: 44px; display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border: 0; background: none; font: inherit; color: var(--label); text-align: left; }
+.row + .row { box-shadow: inset 0 0.5px 0 var(--separator); }
+.row-label { flex: 1; min-width: 0; }
+.row-sub { font-size: 13px; color: var(--label-2); }
+.row-value { text-align: right; font-variant-numeric: tabular-nums; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.row.total { font-weight: 700; }
+.minus-v { color: var(--label-2); }
+.neg { color: var(--red); }
+
+/* 指標カード */
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin: var(--sp-4) var(--sp-4) 0; }
+.card { background: var(--surface); border-radius: var(--r-lg); padding: var(--sp-4); }
+.card.wide { grid-column: 1 / -1; }
+.card .k { font-size: 13px; color: var(--label-2); }
+.card .v { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.card.wide .v { font-size: 34px; }
+.card .s { font-size: 13px; color: var(--label-2); margin-top: 2px; }
+.cap { font-size: 13px; color: var(--label-2); margin: var(--sp-2) var(--sp-3) 0; }
+
+/* グラフ・表 */
+.chart-card { background: var(--surface); border-radius: var(--r-lg); padding: var(--sp-4) var(--sp-3) var(--sp-3); }
+canvas { width: 100%; height: 220px; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); margin: var(--sp-3) var(--sp-1) 0; font-size: 13px; color: var(--label-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tbl-wrap { overflow-x: auto; background: var(--surface); border-radius: var(--r-lg); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+th, td { padding: var(--sp-3) var(--sp-3); text-align: right; white-space: nowrap; }
+th { font-size: 13px; font-weight: 590; color: var(--label-2); }
+th:first-child, td:first-child { text-align: left; padding-left: var(--sp-4); }
+tbody tr { box-shadow: inset 0 0.5px 0 var(--separator); }
+tfoot tr { box-shadow: inset 0 0.5px 0 var(--separator); font-weight: 700; }
+td.z { color: var(--label-3); }
+
+/* 履歴 */
+.log .t { font-size: 15px; color: var(--label-2); width: 92px; flex: none; font-variant-numeric: tabular-nums; }
+.log.void .row-label, .log.void .row-value, .log.void .t { text-decoration: line-through; color: var(--label-3); }
+
+/* ボタン・入力 */
+.btn { min-height: 44px; padding: 0 var(--sp-4); border: 0; border-radius: var(--r-md); font: inherit; font-weight: 590;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease); }
+.btn:active { transform: scale(0.96); opacity: 0.85; }
+.btn-filled { background: var(--accent); color: #fff; }
+.btn-tinted { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.btn-plain { background: none; color: var(--accent); padding: 0 var(--sp-2); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-plain.red { color: var(--red); }
+.btn:disabled { opacity: 0.35; pointer-events: none; }
+.btn.block { width: 100%; }
+.icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none;
+  color: var(--red); cursor: pointer; flex: none; }
+.icon-btn:active { opacity: 0.4; }
+.field { width: 100%; min-height: 44px; padding: var(--sp-2) var(--sp-3); border: 0; border-radius: var(--r-md);
+  background: var(--surface-2); font: inherit; color: var(--label); }
+.field::placeholder { color: var(--label-3); }
+.field:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.field.r { text-align: right; font-variant-numeric: tabular-nums; }
+.frow { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4); min-height: 52px; }
+.frow + .frow { box-shadow: inset 0 0.5px 0 var(--separator); }
+.frow > label { width: 84px; flex: none; font-size: 15px; color: var(--label-2); }
+.frow .unit { font-size: 15px; color: var(--label-2); }
+.swatches { display: flex; flex-wrap: wrap; gap: 0; margin-left: -10px; }
+.sw-c { width: 40px; height: 44px; border: 0; background: none; display: grid; place-items: center; cursor: pointer; }
+.sw-c span { width: 24px; height: 24px; border-radius: 50%; }
+.sw-c[aria-pressed="true"] span { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--label-2); }
+.sw { margin-left: auto; }
+.sw input { display: none; }
+.sw-track { display: block; width: 51px; height: 31px; border-radius: 16px; background: var(--fill); position: relative;
+  transition: background var(--dur) var(--ease); cursor: pointer; }
+.sw-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: transform var(--dur) var(--ease); }
+.sw input:checked + .sw-track { background: var(--green); }
+.sw input:checked + .sw-track::after { transform: translateX(20px); }
+.pcard + .pcard { margin-top: var(--sp-3); }
+.save-bar { position: sticky; bottom: calc(56px + env(safe-area-inset-bottom)); z-index: 5; padding: var(--sp-3) var(--sp-4) var(--sp-1); background: var(--bg); box-shadow: 0 -0.5px 0 var(--separator); }
+.msg-ok { color: var(--green); }
+
+/* タブバー */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex;
+  height: calc(56px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: inset 0 0.5px 0 var(--separator); }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 0; background: none; font: inherit; font-size: 10px; font-weight: 590; color: var(--label-2); cursor: pointer; }
+.tab .ic { width: 26px; height: 26px; }
+.tab[aria-current="page"] { color: var(--accent); }
+
+/* ログイン */
+.login { max-width: 400px; margin: 18vh auto 0; padding: 0 var(--sp-4); }
+.login h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 var(--sp-2); }
+.login p { color: var(--label-2); font-size: 15px; margin: 0 0 var(--sp-6); }
+.login .field { background: var(--surface); margin-bottom: var(--sp-3); }
+.err-t { color: var(--red); font-size: 13px; min-height: 20px; margin: 0 var(--sp-1) var(--sp-3); }
+
+/* 確認シート */
+.scrim { position: fixed; inset: 0; z-index: 49; background: rgba(0,0,0,0.4); opacity: 0; pointer-events: none; transition: opacity var(--dur) var(--ease); }
+.scrim.open { opacity: 1; pointer-events: auto; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--surface);
+  border-radius: var(--r-xl) var(--r-xl) 0 0; padding: var(--sp-3) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom));
+  box-shadow: var(--shadow); transform: translateY(100%); visibility: hidden; transition: transform var(--dur) var(--ease), visibility 0s linear var(--dur); max-width: 560px; margin: 0 auto; }
+.sheet.open { transform: none; visibility: visible; transition: transform var(--dur) var(--ease); }
+.sheet::before { content: ""; display: block; width: 36px; height: 5px; margin: 0 auto var(--sp-4); border-radius: 3px; background: var(--label-3); }
+.sheet h2 { font-size: 22px; margin: 0 0 var(--sp-2); }
+.sheet p { color: var(--label-2); font-size: 15px; margin: 0 0 var(--sp-6); }
+.sheet .btn + .btn { margin-top: var(--sp-2); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ログイン -->
+<section class="login" id="loginView" hidden>
+  <h1>販売管理</h1>
+  <p>管理者パスワードを入力してください。</p>
+  <input class="field" id="pass" type="password" placeholder="パスワード" autocomplete="current-password">
+  <div class="err-t" id="loginErr"></div>
+  <button class="btn btn-filled block" id="loginBtn">ログイン</button>
+</section>
+
+<!-- 本体 -->
+<div id="appView" hidden>
+  <header class="nav">
+    <div class="nav-in">
+      <div class="nav-top">
+        <div style="display:flex;align-items:center;gap:var(--sp-2);min-width:0">
+          <a class="home-btn" href="index.html" aria-label="メニュー"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10.5V19h11v-8.5"/></svg></a>
+          <h1 id="title">概要</h1>
+        </div>
+        <div style="display:flex;align-items:center;gap:2px">
+          <div class="live" id="live"><i></i><span>読み込み中</span></div>
+          <button class="lock-btn" id="lockBtn" aria-label="ロック">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="seg-wrap" id="rangeWrap"><div class="seg" id="range"></div></div>
+    </div>
+  </header>
+  <main class="wrap" id="main"></main>
+
+  <nav class="tabbar">
+    <button class="tab" data-tab="summary" aria-current="page">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="20"/><rect x="6" y="12" width="3" height="8"/><rect x="11" y="8" width="3" height="12"/><rect x="16" y="14" width="3" height="6"/></svg>概要</button>
+    <button class="tab" data-tab="hourly">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><polyline points="12,7 12,12 16,14"/></svg>時間帯</button>
+    <button class="tab" data-tab="log">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><polyline points="14,3 14,7 18,7"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>履歴</button>
+    <button class="tab" data-tab="stock">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 12 5l8 3.5v7L12 19l-8-3.5z"/><path d="M4 8.5 12 12l8-3.5"/><path d="M12 12v7"/></svg>在庫</button>
+    <button class="tab" data-tab="settings">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.5" stroke-dasharray="2.6 2.2"/></svg>設定</button>
+  </nav>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="adjust">
+  <h2>残り本数を合わせる</h2>
+  <p>数え直した実際の本数に合わせます。仕入れ記録は変わりません。</p>
+  <div class="frow" style="background:var(--surface-2);border-radius:var(--r-md);margin-bottom:16px">
+    <label style="width:auto;flex:1">実際の残り本数</label>
+    <input class="field r" id="adjPcs" type="number" inputmode="numeric" min="0" style="max-width:110px;background:var(--surface)"><span class="unit">本</span>
+  </div>
+  <button class="btn btn-filled block" id="adjSet">この本数に設定</button>
+  <button class="btn btn-danger block" id="adjZero" style="margin-top:8px">0本にする（売り切れ）</button>
+  <button class="btn btn-plain block" id="adjCancel" style="margin-top:8px">キャンセル</button>
+</section>
+<section class="sheet" id="confirm">
+  <h2 id="cfTitle"></h2>
+  <p id="cfText"></p>
+  <button class="btn btn-danger block" id="cfOk"></button>
+  <button class="btn btn-plain block" id="cfCancel">キャンセル</button>
+</section>
+
+<script>
+// ===== ここにGASのWebアプリURL（/exec で終わるもの）を貼る =====
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxPALiGXxYTYIFeYSu-rxp0tUIAB3Cdlr367EIkegSQUBscC3j20GNnxwiaiwWgaEgb/exec';
+// ================================================================
+
+const PALETTE = ['#FF9500', '#A2845E', '#AF52DE', '#FF2D55', '#34C759', '#007AFF', '#5AC8FA', '#FFCC00'];
+const TITLES = { summary: '概要', hourly: '時間帯', log: '履歴', stock: '在庫', settings: '設定' };
+const $ = s => document.querySelector(s);
+const yen = n => (n < 0 ? '−¥' : '¥') + Math.abs(Math.round(n)).toLocaleString('ja-JP');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const dayLabel = k => { const [y, m, d] = k.split('-').map(Number); return m + '/' + d + '（' + '日月火水木金土'[new Date(y, m - 1, d).getDay()] + '）'; };
+const hms = ts => { const d = new Date(ts); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
+const clone = o => JSON.parse(JSON.stringify(o));
+const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+
+const LOCK_MS = 10 * 60 * 1000;                 // 10分操作がなければ自動ロック
+function touch() { try { localStorage.setItem('churro_admin_seen', String(Date.now())); } catch (e) {} }
+let key = (() => {
+  const k = localStorage.getItem('churro_admin_key') || '';
+  const seen = Number(localStorage.getItem('churro_admin_seen') || 0);
+  if (k && Date.now() - seen > LOCK_MS) { localStorage.removeItem('churro_admin_key'); return ''; }
+  return k;
+})();
+let data = null;           // { config, orders:[{id,ticket,ts,items:[{productId,name,price,qty}],status}] }
+let tab = (() => {                                  // メニューからの指定タブで開く
+  const t = new URLSearchParams(location.search).get('tab');
+  return ['summary', 'hourly', 'log', 'stock', 'settings'].includes(t) ? t : 'summary';
+})();
+let range = null;          // null=未決定, 'all' or 'YYYY-MM-DD'
+let showVoid = false;
+let draft = null, dirty = false, saveMsg = '';
+let lastOk = 0, connOk = null;
+
+// ---------- 通信 ----------
+async function api(method, body) {
+  if (!GAS_URL) throw new Error('GAS_URL が未設定です');
+  const r = method === 'GET'
+    ? await fetch(GAS_URL + '?action=all&key=' + encodeURIComponent(key) + '&t=' + Date.now())
+    : await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+  return r.json();
+}
+
+async function fetchAll(first) {
+  try {
+    const j = await api('GET');
+    if (!j.ok) {
+      if (j.error === 'auth') { logout('パスワードが違います'); return; }
+      throw new Error(j.error);
+    }
+    data = {
+      config: j.config,
+      orders: j.orders.map(r => ({
+        id: r[0], ticket: r[1], ts: r[2],
+        items: JSON.parse(r[3] || '[]').map(it => ({ productId: it[0], name: it[1], price: it[2], qty: it[3] })),
+        status: r[4], doneAt: r[5], reason: r[6] || '', disposition: r[7] || ''
+      })).sort((a, b) => a.ts - b.ts),
+      stock: j.stock || null,
+      surplus: j.surplus || {}
+    };
+    if (!dirty) draft = clone(data.config);
+    connOk = true; lastOk = Date.now();
+    if (first) showApp();
+    render(false);
+  } catch (e) {
+    connOk = false;
+    if (first) { logout(String(e.message || e)); return; }
+    renderLive();
+  }
+}
+
+function login() {
+  key = $('#pass').value.trim();
+  if (!key) return;
+  localStorage.setItem('churro_admin_key', key);
+  touch();
+  $('#loginErr').textContent = '';
+  fetchAll(true);
+}
+function logout(msg) {
+  key = ''; localStorage.removeItem('churro_admin_key'); localStorage.removeItem('churro_admin_seen');
+  data = null; dirty = false; draft = null;
+  $('#pass').value = '';
+  $('#appView').hidden = true; $('#loginView').hidden = false;
+  $('#loginErr').textContent = msg || '';
+}
+function showApp() { $('#loginView').hidden = true; $('#appView').hidden = false; }
+
+// ---------- 集計 ----------
+function dates() { return [...new Set(data.orders.map(o => dayKey(o.ts)))].sort(); }
+
+function unitPieceCost() {                    // チュロス1本あたりの仕入れ単価
+  const pur = (data.config.purchases || []);
+  const pcs = pur.reduce((a, q) => a + (Number(q.pcsPerBag) || 0) * (Number(q.bags) || 0), 0);
+  const amt = pur.reduce((a, q) => a + (Number(q.pricePerBag) || 0) * (Number(q.bags) || 0), 0);
+  return pcs ? amt / pcs : 0;
+}
+const productCost = p => Math.round(unitPieceCost() * (Number(p.pcs) || 0));
+
+function compute() {
+  const cfg = data.config;
+  const pmap = {};
+  cfg.products.forEach(p => pmap[p.id] = p);
+  const inRange = o => range === 'all' || dayKey(o.ts) === range;
+  const rows = data.orders.filter(inRange);
+  const act = rows.filter(o => o.status !== 'void');
+
+  const per = {};
+  const order = cfg.products.map(p => p.id);
+  act.forEach(o => o.items.forEach(it => {
+    if (!per[it.productId]) {
+      const p = pmap[it.productId];
+      per[it.productId] = { id: it.productId, name: p ? p.name : it.name, color: p ? p.color : '#8E8E93',
+                            unitCost: p ? productCost(p) : 0, qty: 0, revenue: 0 };
+      if (!order.includes(it.productId)) order.push(it.productId);
+    }
+    per[it.productId].qty += it.qty;
+    per[it.productId].revenue += it.price * it.qty;
+  }));
+  const products = order.filter(id => per[id]).map(id => {
+    const x = per[id]; x.material = x.qty * x.unitCost; x.gross = x.revenue - x.material; return x;
+  });
+  const revenue = products.reduce((a, p) => a + p.revenue, 0);
+  const material = products.reduce((a, p) => a + p.material, 0);
+  const qty = products.reduce((a, p) => a + p.qty, 0);
+  const fixedTotal = cfg.fixedCosts.reduce((a, f) => a + (Number(f.amount) || 0), 0);
+  const fixed = range === 'all' ? fixedTotal : 0;
+  const gross = revenue - material - fixed;
+
+  // 時間帯
+  const hourSet = act.map(o => new Date(o.ts).getHours());
+  let hMin = hourSet.length ? Math.min(...hourSet) : 10, hMax = hourSet.length ? Math.max(...hourSet) : 16;
+  hMin = Math.min(hMin, 10); hMax = Math.max(hMax, 16);
+  const hours = []; for (let h = hMin; h <= hMax; h++) hours.push(h);
+  const matrix = {};
+  hours.forEach(h => { matrix[h] = { total: 0, revenue: 0, orders: 0 }; products.forEach(p => matrix[h][p.id] = 0); });
+  act.forEach(o => {
+    const h = new Date(o.ts).getHours();
+    matrix[h].orders++;
+    o.items.forEach(it => { matrix[h][it.productId] += it.qty; matrix[h].total += it.qty; matrix[h].revenue += it.price * it.qty; });
+  });
+
+  return { rows, act, products, revenue, material, fixed, fixedTotal, gross, qty,
+           orderCount: act.length, hours, matrix, voids: rows.length - act.length };
+}
+
+// ---------- 表示 ----------
+function render(full) {
+  if (!data) return;
+  const ds = dates();
+  if (range === null || (range !== 'all' && !ds.includes(range))) {
+    const t = dayKey(Date.now());
+    range = ds.includes(t) ? t : 'all';
+  }
+  $('#title').textContent = TITLES[tab];
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
+  $('#rangeWrap').hidden = (tab === 'settings' || tab === 'stock');
+  $('#range').innerHTML = [['all', '全期間'], ...ds.map(d => [d, dayLabel(d)])]
+    .map(([v, l]) => `<button data-range="${v}" aria-selected="${v === range}">${l}</button>`).join('');
+  renderLive();
+
+  if (tab === 'settings') {
+    // 入力中は再描画しない（フォーカスが外れるため）
+    if (!full && (dirty || $('#main').contains(document.activeElement))) return;
+    renderSettings(); return;
+  }
+  const c = compute();
+  if (tab === 'summary') renderSummary(c);
+  else if (tab === 'hourly') renderHourly(c);
+  else if (tab === 'stock') {
+    if (!full && $('#main').contains(document.activeElement)) return;
+    renderStock(c);
+  }
+  else renderLog(c);
+}
+
+function renderLive() {
+  const el = $('#live'), t = el.querySelector('span');
+  el.className = 'live ' + (connOk === true ? 'ok' : connOk === false ? 'err' : '');
+  t.textContent = connOk === false ? '接続エラー（再試行中）' : lastOk ? '更新 ' + hms(lastOk) : '読み込み中';
+}
+
+function renderSummary(c) {
+  const rate = c.revenue ? Math.round(c.gross / c.revenue * 1000) / 10 : 0;
+  const fixedRow = range === 'all'
+    ? `<div class="row"><span class="row-label">固定材料費</span><span class="row-value minus-v">−${yen(c.fixed)}</span></div>`
+    : `<div class="row"><span class="row-label">固定材料費<div class="row-sub">全期間表示で差し引き（合計 ${yen(c.fixedTotal)}）</div></span><span class="row-value minus-v">—</span></div>`;
+  $('#main').innerHTML = `
+    <div class="cards">
+      <div class="card"><div class="k">売上</div><div class="v">${yen(c.revenue)}</div></div>
+      <div class="card"><div class="k">販売個数</div><div class="v">${c.qty}<span style="font-size:17px;font-weight:590"> 個</span></div></div>
+      <div class="card wide"><div class="k">${range === 'all' ? '粗利' : '粗利（固定費控除前）'}</div>
+        <div class="v ${c.gross < 0 ? 'neg' : ''}">${yen(c.gross)}</div>
+        <div class="s">粗利率 ${rate}%${c.voids ? ' ・ 取消 ' + c.voids + '件は除外' : ''}</div></div>
+    </div>
+
+    <section class="group">
+      <p class="group-head" style="margin-top:24px"><span>収支</span></p>
+      <div class="list">
+        <div class="row"><span class="row-label">売上</span><span class="row-value">${yen(c.revenue)}</span></div>
+        <div class="row"><span class="row-label">材料原価</span><span class="row-value minus-v">−${yen(c.material)}</span></div>
+        ${fixedRow}
+        <div class="row total"><span class="row-label">粗利</span><span class="row-value ${c.gross < 0 ? 'neg' : ''}">${yen(c.gross)}</span></div>
+      </div>
+    </section>
+
+    <section class="group">
+      <p class="group-head"><span>商品別</span><span>売上 / 粗利（固定費前）</span></p>
+      <div class="list">
+        ${c.products.length ? c.products.map(p => `
+          <div class="row">
+            <span class="dot" style="background:${esc(p.color)}"></span>
+            <span class="row-label">${esc(p.name)}<div class="row-sub">${p.qty}個 ・ 原価 ${yen(p.unitCost)}/個</div></span>
+            <span class="row-value">${yen(p.revenue)}<div class="row-sub">${yen(p.gross)}</div></span>
+          </div>`).join('') : '<div class="row"><span class="row-label row-sub">まだ販売がありません</span></div>'}
+      </div>
+    </section>`;
+}
+
+function renderHourly(c) {
+  const ps = c.products;
+  $('#main').innerHTML = `
+    <section class="group">
+      <p class="group-head"><span>時間帯別の販売個数</span></p>
+      <div class="chart-card">
+        <canvas id="chart"></canvas>
+        <div class="legend">${ps.map(p => `<span><i class="dot" style="background:${esc(p.color)}"></i>${esc(p.name)}</span>`).join('')}</div>
+      </div>
+    </section>
+    <section class="group">
+      <p class="group-head"><span>内訳</span><span>横にスクロール可</span></p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>時間</th>${ps.map(p => `<th>${esc(p.name)}</th>`).join('')}<th>計</th><th>組数</th><th>売上</th></tr></thead>
+        <tbody>${c.hours.map(h => `<tr><td>${h}:00〜</td>${ps.map(p => { const v = c.matrix[h][p.id]; return `<td class="${v ? '' : 'z'}">${v}</td>`; }).join('')}
+          <td class="${c.matrix[h].total ? '' : 'z'}">${c.matrix[h].total}</td><td class="${c.matrix[h].orders ? '' : 'z'}">${c.matrix[h].orders}</td><td class="${c.matrix[h].revenue ? '' : 'z'}">${yen(c.matrix[h].revenue)}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><td>合計</td>${ps.map(p => `<td>${p.qty}</td>`).join('')}<td>${c.qty}</td><td>${c.orderCount}</td><td>${yen(c.revenue)}</td></tr></tfoot>
+      </table></div>
+    </section>`;
+  drawChart(c);
+}
+
+function drawChart(c) {
+  const cv = $('#chart'); if (!cv) return;
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = 220;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const lab2 = css.getPropertyValue('--label-2').trim(), sep = css.getPropertyValue('--separator').trim();
+  const L = 30, R = 6, T = 8, B = 24, pw = W - L - R, ph = H - T - B;
+  const maxV = Math.max(1, ...c.hours.map(h => c.matrix[h].total));
+  const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500].find(s => maxV / s <= 4) || 1000;
+  const top = step * Math.ceil(maxV / step);
+  ctx.font = '11px ' + css.getPropertyValue('--font'); ctx.fillStyle = lab2; ctx.strokeStyle = sep; ctx.lineWidth = 1;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let v = 0; v <= top; v += step) {
+    const y = T + ph - v / top * ph;
+    ctx.beginPath(); ctx.moveTo(L, Math.round(y) + 0.5); ctx.lineTo(W - R, Math.round(y) + 0.5); ctx.stroke();
+    ctx.fillText(v, L - 6, y);
+  }
+  const slot = pw / c.hours.length, bw = Math.min(28, slot * 0.6);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  c.hours.forEach((h, i) => {
+    const x = L + slot * i + (slot - bw) / 2;
+    let y = T + ph;
+    c.products.forEach(p => {
+      const v = c.matrix[h][p.id]; if (!v) return;
+      const bh = v / top * ph;
+      ctx.fillStyle = p.color; ctx.fillRect(x, y - bh, bw, bh); y -= bh;
+    });
+    ctx.fillStyle = lab2;
+    if (c.hours.length <= 12 || i % 2 === 0) ctx.fillText(h + '時', L + slot * i + slot / 2, T + ph + 6);
+  });
+}
+
+function renderLog(c) {
+  const list = (showVoid ? c.rows : c.act).slice().reverse();
+  const st = { waiting: '調理中', ready: '準備完了', done: 'お渡し済', void: '取消' };
+  $('#main').innerHTML = `
+    <section class="group">
+      <div class="list">
+        <div class="row"><span class="row-label">取消分も表示<div class="row-sub">取消 ${c.voids}組</div></span>
+          <label class="sw"><input type="checkbox" id="voidSw" ${showVoid ? 'checked' : ''}><span class="sw-track"></span></label></div>
+      </div>
+    </section>
+    <section class="group">
+      <p class="group-head"><span>${list.length}組（新しい順）</span><button class="btn btn-plain" id="csvBtn" style="min-height:32px;font-size:13px">CSV書き出し</button></p>
+      <div class="list">
+        ${list.length ? list.slice(0, 300).map(o => `
+          <div class="row log ${o.status === 'void' ? 'void' : ''}">
+            <span class="t">${range === 'all' ? dayLabel(dayKey(o.ts)).replace(/（.）/, '') + ' ' : ''}${hms(o.ts)}</span>
+            <span class="row-label"><b>No.${o.ticket}</b> ${esc(o.items.map(i => i.name + '×' + i.qty).join(' / '))}
+              <div class="row-sub">${st[o.status] || o.status}${o.status === 'void' && o.reason ? '：' + esc(o.reason) : ''}${o.status === 'void' && o.disposition && o.disposition !== '—' ? '（' + esc(o.disposition) + '）' : ''}</div></span>
+            <span class="row-value">${yen(o.items.reduce((a, i) => a + i.price * i.qty, 0))}</span>
+          </div>`).join('') : '<div class="row"><span class="row-label row-sub">データがありません</span></div>'}
+      </div>
+      ${list.length > 300 ? '<p class="cap">最新300組を表示中。全件はCSVかスプレッドシートで確認できます。</p>' : ''}
+    </section>`;
+}
+
+function exportCsv() {
+  const pmap = {}; data.config.products.forEach(p => pmap[p.id] = p);
+  const rows = [['日付', '時刻', '整理券', '商品', '個数', '単価', '原価', '金額', '状態', '取消理由', '取消処理']];
+  data.orders.forEach(o => o.items.forEach(i => rows.push([
+    dayKey(o.ts), hms(o.ts), o.ticket, i.name, i.qty, i.price,
+    pmap[i.productId] ? productCost(pmap[i.productId]) : 0, i.price * i.qty,
+    o.status === 'void' ? '取消' : o.status === 'done' ? 'お渡し済' : 'お渡し待ち',
+    o.reason || '', o.disposition || ''
+  ])));
+  const csv = '\uFEFF' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'churros_orders_' + dayKey(Date.now()) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ---------- 在庫 ----------
+function renderStock(c) {
+  const cfg = data.config;
+  const st = data.stock || { totalPieces: 0, usedPieces: 0, leftPieces: 0, warnAt: 0, warn: false, pcsPerBag: 0 };
+  const pur = (cfg.purchases || []).slice().reverse();
+  const bags = st.pcsPerBag ? (st.leftPieces / st.pcsPerBag) : 0;
+  const surplusPcs = Object.keys(data.surplus || {}).reduce((a, f) => a + (Number(data.surplus[f]) || 0), 0);
+  const unit = unitPieceCost();
+
+  $('#main').innerHTML = `
+    <div class="cards">
+      <div class="card wide" style="${st.warn ? 'box-shadow:inset 0 0 0 2px var(--red)' : ''}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+          <div style="min-width:0">
+            <div class="k">チュロス残り本数</div>
+            <div class="v" style="font-size:52px;${st.warn ? 'color:var(--red)' : ''}">${st.leftPieces}<span style="font-size:20px;font-weight:590"> 本</span></div>
+          </div>
+          <button class="btn btn-tinted" id="adjBtn" style="min-height:40px;font-size:15px;flex:none">差異</button>
+        </div>
+        <div class="s">${st.pcsPerBag ? '約 ' + (Math.round(bags * 10) / 10) + ' 袋分' : '仕入れを登録してください'}${st.warn ? ' ・ 警告ライン ' + st.warnAt + '本を下回っています' : ''}${st.adjustedAt ? ' ・ 最終調整 ' + dayLabel(dayKey(st.adjustedAt)).replace(/（.）/, '') + ' ' + hms(st.adjustedAt).slice(0, 5) : ''}</div>
+      </div>
+    </div>
+
+    <section class="group">
+      <p class="group-head"><span>内訳</span></p>
+      <div class="list">
+        <div class="row"><span class="row-label">仕入れ合計</span><span class="row-value">${st.totalPieces}本 / ${yen(st.costTotal || 0)}</span></div>
+        <div class="row"><span class="row-label">使用済み<div class="row-sub">注文・廃棄で減った分</div></span><span class="row-value minus-v">−${st.usedPieces}本</span></div>
+        <div class="row"><span class="row-label">1本あたり仕入れ単価</span><span class="row-value">${unit ? yen(Math.round(unit * 100) / 100) : '—'}</span></div>
+        <div class="row"><span class="row-label">余剰在庫（取消で作り置き）</span><span class="row-value">${surplusPcs}本</span></div>
+      </div>
+    </section>
+
+    <section class="group">
+      <p class="group-head"><span>仕入れを追加</span></p>
+      <div class="list">
+        <div class="frow"><label>1袋の本数</label><input class="field r" id="qPcs" type="number" inputmode="numeric" min="0" placeholder="例：50"><span class="unit">本</span></div>
+        <div class="frow"><label>袋数</label><input class="field r" id="qBags" type="number" inputmode="numeric" min="0" placeholder="例：4"><span class="unit">袋</span></div>
+        <div class="frow"><label>1袋の金額</label><input class="field r" id="qPrice" type="number" inputmode="numeric" min="0" placeholder="例：1200"><span class="unit">円</span></div>
+      </div>
+      <button class="btn btn-filled block" id="addQ" style="margin-top:12px">仕入れを登録</button>
+      <p class="cap" id="stockMsg">${esc(saveMsg)}</p>
+    </section>
+
+    <section class="group">
+      <p class="group-head"><span>在庫警告</span></p>
+      <div class="frow" style="background:var(--surface);border-radius:var(--r-lg)">
+        <label style="width:auto;flex:1">残りがこの袋数を下回ったら警告</label>
+        <input class="field r" id="warnBags" type="number" inputmode="numeric" min="0" step="0.5" value="${cfg.warnBags}" style="max-width:90px"><span class="unit">袋</span>
+      </div>
+      <button class="btn btn-tinted block" id="saveWarn" style="margin-top:12px">警告設定を保存</button>
+      <p class="cap">警告中は販売・キッチンの画面上部に赤字で表示されます。現在の警告ライン：${st.warnAt}本</p>
+    </section>
+
+    <section class="group">
+      <p class="group-head"><span>仕入れ履歴</span><span>${(cfg.purchases || []).length}件</span></p>
+      <div class="list">
+        ${pur.length ? pur.map(q => `
+          <div class="row">
+            <span class="row-label">${dayLabel(dayKey(q.ts))} ${hms(q.ts).slice(0, 5)}
+              <div class="row-sub">${q.pcsPerBag}本 × ${q.bags}袋 ・ ${yen(q.pricePerBag)}/袋</div></span>
+            <span class="row-value">${q.pcsPerBag * q.bags}本<div class="row-sub">${yen(q.pricePerBag * q.bags)}</div></span>
+            <button class="icon-btn" data-delq="${esc(q.id)}" aria-label="削除"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14"/><path d="M7 7l1 12h8l1-12"/><path d="M10 7V4h4v3"/></svg></button>
+          </div>`).join('') : '<div class="row"><span class="row-label row-sub">まだ登録がありません</span></div>'}
+      </div>
+    </section>`;
+}
+
+// ---------- 設定 ----------
+function renderSettings() {
+  if (!draft) draft = clone(data.config);
+  const fixedTotal = draft.fixedCosts.reduce((a, f) => a + (Number(f.amount) || 0), 0);
+  $('#main').innerHTML = `
+    <section class="group">
+      <p class="group-head"><span>商品</span><span>同じ味は余剰在庫を共有</span></p>
+      ${draft.products.map((p, i) => `
+        <div class="list pcard" data-pi="${i}">
+          <div class="frow"><label>商品名</label><input class="field" data-f="name" value="${esc(p.name)}" placeholder="例：シナモン 3本"></div>
+          <div class="frow"><label>味</label><input class="field" data-f="flavor" value="${esc(p.flavor || '')}" placeholder="${esc(p.name || '商品名と同じ')}"></div>
+          <div class="frow"><label>価格</label><input class="field r" data-f="price" type="number" inputmode="numeric" min="0" value="${p.price}"><span class="unit">円</span></div>
+          <div class="frow"><label>封入本数</label><input class="field r" data-f="pcs" type="number" inputmode="numeric" min="0" value="${p.pcs == null ? 1 : p.pcs}"><span class="unit">本</span></div>
+          <div class="frow"><label>原価</label><span style="flex:1;text-align:right;color:var(--label-2);font-variant-numeric:tabular-nums">${yen(productCost(p))}</span><span class="unit">/個</span></div>
+          <div class="frow"><label>色</label><div class="swatches">${PALETTE.map(col => `<button class="sw-c" data-color="${col}" aria-pressed="${col === p.color}" aria-label="色"><span style="background:${col}"></span></button>`).join('')}</div></div>
+          <div class="frow"><label style="width:auto;flex:1">販売画面に表示</label><label class="sw"><input type="checkbox" data-f="active" ${p.active !== false ? 'checked' : ''}><span class="sw-track"></span></label></div>
+          <div class="frow"><button class="btn btn-plain red" data-delp="${i}" style="padding:0">この商品を削除</button></div>
+        </div>`).join('')}
+      <button class="btn btn-tinted block" id="addP" style="margin-top:12px">商品を追加</button>
+    </section>
+
+    <section class="group">
+      <p class="group-head"><span>固定材料費（油など）</span><span>合計 ${yen(fixedTotal)}</span></p>
+      <div class="list">
+        ${draft.fixedCosts.map((f, i) => `
+          <div class="frow" data-fi="${i}">
+            <input class="field" data-g="name" value="${esc(f.name)}" placeholder="項目名" style="flex:1.4">
+            <input class="field r" data-g="amount" type="number" inputmode="numeric" min="0" value="${f.amount}" style="flex:1">
+            <span class="unit">円</span>
+            <button class="icon-btn" data-delf="${i}" aria-label="削除"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14"/><path d="M7 7l1 12h8l1-12"/><path d="M10 7V4h4v3"/></svg></button>
+          </div>`).join('') || '<div class="frow"><span class="row-sub">未登録</span></div>'}
+      </div>
+      <button class="btn btn-tinted block" id="addF" style="margin-top:12px">固定費を追加</button>
+    </section>
+
+    <div class="save-bar">
+      <button class="btn btn-filled block" id="saveBtn" ${dirty ? '' : 'disabled'}>変更を保存</button>
+      <p class="cap ${(saveMsg.startsWith('保存しました') || saveMsg.startsWith('販売データを削除しました')) ? 'msg-ok' : ''}" style="text-align:center" id="saveMsg">${esc(saveMsg)}</p>
+    </div>
+
+    <section class="group" style="margin-top:32px">
+      <p class="group-head"><span>その他</span></p>
+      <div class="list">
+        <button class="row" id="logoutBtn" style="cursor:pointer"><span class="row-label" style="color:var(--accent)">ログアウト</span></button>
+        <button class="row" id="resetBtn" style="cursor:pointer"><span class="row-label" style="color:var(--red)">全販売データを削除</span></button>
+      </div>
+      <p class="cap">テスト販売のあと本番前に使います。販売端末の本日分も次回同期時に消えます。</p>
+    </section>`;
+}
+
+function markDirty() {
+  dirty = true; saveMsg = '未保存の変更があります';
+  const b = $('#saveBtn'); if (b) b.disabled = false;
+  const m = $('#saveMsg'); if (m) { m.textContent = saveMsg; m.classList.remove('msg-ok'); }
+}
+
+async function save() {
+  const b = $('#saveBtn'); if (b) { b.disabled = true; $('#saveMsg').textContent = '保存中…'; }
+  try {
+    const j = await api('POST', { action: 'saveConfig', key, config: draft });
+    if (!j.ok) throw new Error(j.error === 'auth' ? 'パスワードが違います' : j.error);
+    data.config = j.config; draft = clone(j.config); dirty = false; saveMsg = '保存しました（販売画面には1分以内に反映）';
+  } catch (e) {
+    saveMsg = '保存に失敗しました：' + (e.message || e);
+  }
+  await fetchAll(false);
+  render(true);
+}
+
+let cfAction = null;
+function confirmSheet(title, text, okLabel, fn) {
+  $('#cfTitle').textContent = title; $('#cfText').textContent = text; $('#cfOk').textContent = okLabel; cfAction = fn;
+  $('#confirm').classList.add('open'); $('#scrim').classList.add('open');
+}
+function closeConfirm() { $('#confirm').classList.remove('open'); $('#scrim').classList.remove('open'); cfAction = null; }
+
+function openAdjust(v) {
+  $('#adjust').classList.toggle('open', v);
+  $('#scrim').classList.toggle('open', v || $('#confirm').classList.contains('open'));
+  if (v) { $('#adjPcs').value = (data.stock || {}).leftPieces || 0; }
+}
+async function adjustStock(pieces) {
+  openAdjust(false);
+  saveMsg = '調整中…';
+  try {
+    const j = await api('POST', { action: 'adjustStock', key, pieces });
+    if (!j.ok) throw new Error(j.error === 'auth' ? 'パスワードが違います' : j.error);
+    saveMsg = '残り本数を ' + pieces + '本 に調整しました';
+  } catch (e) {
+    saveMsg = '調整に失敗しました：' + (e.message || e);
+  }
+  await fetchAll(false);
+  render(true);
+}
+
+// ---------- イベント ----------
+$('#loginBtn').addEventListener('click', login);
+$('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; window.scrollTo(0, 0); render(true); }));
+$('#range').addEventListener('click', e => { const b = e.target.closest('[data-range]'); if (b) { range = b.dataset.range; render(true); } });
+$('#lockBtn').addEventListener('click', () => logout(''));
+['click', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, touch, { passive: true }));
+setInterval(() => {                                 // 放置で自動ロック
+  if (!key) return;
+  const seen = Number(localStorage.getItem('churro_admin_seen') || 0);
+  if (Date.now() - seen > LOCK_MS) logout('しばらく操作がなかったためロックしました');
+}, 30000);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  const seen = Number(localStorage.getItem('churro_admin_seen') || 0);
+  if (key && Date.now() - seen > LOCK_MS) logout('しばらく操作がなかったためロックしました');
+});
+
+$('#cfCancel').addEventListener('click', closeConfirm);
+$('#adjCancel').addEventListener('click', () => openAdjust(false));
+$('#adjSet').addEventListener('click', () => adjustStock(Math.max(0, Math.round(Number($('#adjPcs').value) || 0))));
+$('#adjZero').addEventListener('click', () => adjustStock(0));
+$('#scrim').addEventListener('click', () => { closeConfirm(); openAdjust(false); });
+$('#cfOk').addEventListener('click', () => { const fn = cfAction; closeConfirm(); if (fn) fn(); });
+window.addEventListener('resize', () => { if (tab === 'hourly') render(true); });
+
+$('#main').addEventListener('change', e => {
+  if (e.target.id === 'voidSw') { showVoid = e.target.checked; render(true); return; }
+  const pc = e.target.closest('[data-pi]');
+  if (pc && e.target.dataset.f === 'active') { draft.products[+pc.dataset.pi].active = e.target.checked; markDirty(); }
+});
+$('#main').addEventListener('input', e => {
+  const t = e.target;
+  const pc = t.closest('[data-pi]'), fc = t.closest('[data-fi]');
+  if (pc && t.dataset.f && t.dataset.f !== 'active') {
+    const p = draft.products[+pc.dataset.pi];
+    p[t.dataset.f] = (t.dataset.f === 'name' || t.dataset.f === 'flavor')
+      ? t.value : Math.max(0, Math.round(Number(t.value) || 0));
+    markDirty();
+  } else if (fc && t.dataset.g) {
+    const f = draft.fixedCosts[+fc.dataset.fi];
+    f[t.dataset.g] = t.dataset.g === 'name' ? t.value : Math.max(0, Math.round(Number(t.value) || 0));
+    markDirty();
+  }
+});
+$('#main').addEventListener('click', e => {
+  const t = e.target;
+  const sw = t.closest('[data-color]');
+  if (sw) {
+    const pc = sw.closest('[data-pi]'); draft.products[+pc.dataset.pi].color = sw.dataset.color;
+    pc.querySelectorAll('[data-color]').forEach(x => x.setAttribute('aria-pressed', x === sw));
+    markDirty(); return;
+  }
+  if (t.closest('#csvBtn')) { exportCsv(); return; }
+  if (t.closest('#addP')) {
+    draft.products.push({ id: newId('p_'), name: '', flavor: '', price: 0, pcs: 1, color: PALETTE[draft.products.length % PALETTE.length], active: true });
+    markDirty(); renderSettings(); return;
+  }
+  if (t.closest('#addF')) { draft.fixedCosts.push({ id: newId('f_'), name: '', amount: 0 }); markDirty(); renderSettings(); return; }
+  const dp = t.closest('[data-delp]');
+  if (dp) {
+    const p = draft.products[+dp.dataset.delp];
+    confirmSheet('商品を削除', `「${p.name || '無題'}」を削除します。過去の販売記録は残りますが、原価は0円として集計されます。販売画面から消すだけなら「販売画面に表示」をオフにしてください。`, '削除', () => {
+      draft.products.splice(+dp.dataset.delp, 1); markDirty(); renderSettings();
+    });
+    return;
+  }
+  const df = t.closest('[data-delf]');
+  if (df) { draft.fixedCosts.splice(+df.dataset.delf, 1); markDirty(); renderSettings(); return; }
+  if (t.closest('#adjBtn')) { openAdjust(true); return; }
+  if (t.closest('#addQ')) {
+    const pcs = Math.max(0, Math.round(Number($('#qPcs').value) || 0));
+    const bags = Math.max(0, Math.round(Number($('#qBags').value) || 0));
+    const price = Math.max(0, Math.round(Number($('#qPrice').value) || 0));
+    if (!pcs || !bags) { saveMsg = '1袋の本数と袋数を入力してください'; $('#stockMsg').textContent = saveMsg; return; }
+    draft.purchases = (draft.purchases || []).concat([{ id: newId('q_'), ts: Date.now(), pcsPerBag: pcs, bags: bags, pricePerBag: price }]);
+    dirty = true; save(); return;
+  }
+  const dq = t.closest('[data-delq]');
+  if (dq) {
+    confirmSheet('仕入れを削除', 'この仕入れ記録を削除します。残り本数の計算もやり直されます。', '削除', () => {
+      draft.purchases = (draft.purchases || []).filter(q => q.id !== dq.dataset.delq);
+      dirty = true; save();
+    });
+    return;
+  }
+  if (t.closest('#saveWarn')) {
+    draft.warnBags = Math.max(0, Number($('#warnBags').value) || 0);
+    dirty = true; save(); return;
+  }
+  if (t.closest('#saveBtn')) { save(); return; }
+  if (t.closest('#logoutBtn')) { logout(''); return; }
+  if (t.closest('#resetBtn')) {
+    confirmSheet('全販売データを削除', 'スプレッドシートの販売記録をすべて消去します。元に戻せません。商品と固定費の設定は残ります。', 'すべて削除', async () => {
+      try {
+        const j = await api('POST', { action: 'reset', key });
+        if (!j.ok) throw new Error(j.error);
+        saveMsg = '販売データを削除しました';
+        await fetchAll(false); renderSettings();
+      } catch (err) { saveMsg = '削除に失敗しました：' + (err.message || err); renderSettings(); }
+    });
+  }
+});
+
+// ---------- 起動 ----------
+if (key) { touch(); fetchAll(true); } else { $('#loginView').hidden = false; if (!GAS_URL) $('#loginErr').textContent = 'admin.html 内の GAS_URL を設定してください'; }
+setInterval(() => { if (key && data && !document.hidden) fetchAll(false); }, 5000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && key && data) fetchAll(false); });
+</script>
+</body>
+</html>

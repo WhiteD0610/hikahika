@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="チュロス管理">
+<title>チュロス管理</title>
+<style>
+:root {
+  --bg: #F2F2F7; --surface: #FFFFFF;
+  --separator: rgba(60,60,67,0.20); --fill: rgba(120,120,128,0.12);
+  --label: #000000; --label-2: rgba(60,60,67,0.60); --label-3: rgba(60,60,67,0.30);
+  --accent: #007AFF; --green: #34C759; --orange: #FF9500; --red: #FF3B30;
+  --r-md: 10px; --r-lg: 14px; --r-xl: 22px;
+  --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px; --sp-8: 32px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.08);
+  --ease: cubic-bezier(0.32, 0.72, 0, 1); --dur: 280ms;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000; --surface: #1C1C1E;
+    --separator: rgba(84,84,88,0.65); --fill: rgba(120,120,128,0.24);
+    --label: #FFFFFF; --label-2: rgba(235,235,245,0.60); --label-3: rgba(235,235,245,0.30);
+    --accent: #0A84FF; --green: #30D158; --orange: #FF9F0A; --red: #FF453A;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.5);
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; font-family: var(--font); font-size: 17px; line-height: 1.47; color: var(--label);
+  background: var(--bg); -webkit-font-smoothing: antialiased; -webkit-user-select: none; user-select: none;
+  touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  padding: env(safe-area-inset-top) var(--sp-4) calc(var(--sp-8) + env(safe-area-inset-bottom)); }
+.wrap { max-width: 520px; margin: 0 auto; }
+header { padding: var(--sp-8) 0 var(--sp-6); }
+h1 { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+header p { margin: var(--sp-2) 0 0; font-size: 15px; color: var(--label-2); }
+
+.menu { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3); }
+.tile { aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--r-xl); background: var(--surface);
+  box-shadow: var(--shadow); color: var(--label); text-decoration: none; text-align: center;
+  cursor: pointer; transition: transform var(--dur) var(--ease); }
+.tile:active { transform: scale(0.97); }
+.ico { width: 64px; height: 64px; flex: none; border-radius: 20px; display: grid; place-items: center; }
+.ico svg { width: 34px; height: 34px; }
+.tile .tx { min-width: 0; display: flex; flex-direction: column; }
+.tile .nm { display: block; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+.tile .ds { display: block; font-size: 12px; color: var(--label-2); margin-top: 2px; }
+.tile.sok .ico { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }
+.tile.reg .ico { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.tile.kit .ico { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
+.tile.ten .ico { background: color-mix(in srgb, #5856D6 18%, transparent); color: #5856D6; }
+.tile.adm .ico { background: color-mix(in srgb, var(--orange) 18%, transparent); color: var(--orange); }
+footer { margin-top: var(--sp-8); font-size: 13px; color: var(--label-3); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>チュロス管理</h1>
+    <p>使う画面を選んでください</p>
+  </header>
+
+  <nav class="menu">
+    <a class="tile adm" href="admin.html">
+      <span class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.5" stroke-dasharray="2.6 2.2"/></svg>
+      </span>
+      <span class="tx"><span class="nm">管理</span><span class="ds">粗利・在庫・設定</span></span>
+    </a>
+
+    <a class="tile ten" href="Tenken.html">
+      <span class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="9" cy="7" rx="5" ry="2.2"/><path d="M4 7v4c0 1.2 2.2 2.2 5 2.2M4 11v4c0 1.2 2.2 2.2 5 2.2"/><path d="M14 7v2.5"/><circle cx="16.5" cy="15.5" r="4.5"/><polyline points="14.6,15.6 16,17 18.5,14.2"/></svg>
+      </span>
+      <span class="tx"><span class="nm">定時点検</span><span class="ds">現金と売上の照合</span></span>
+    </a>
+  </nav>
+
+  <footer>各画面の左上のアイコンでこのメニューに戻れます</footer>
+</div>
+</body>
+</html>

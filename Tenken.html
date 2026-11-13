@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="定時点検">
+<title>会計 定時点検</title>
+<script>
+// ===== ここにGASのWebアプリURL（/exec で終わるもの）を貼る =====
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxPALiGXxYTYIFeYSu-rxp0tUIAB3Cdlr367EIkegSQUBscC3j20GNnxwiaiwWgaEgb/exec';
+// ================================================================
+</script>
+<style>
+:root {
+  --bg: #F2F2F7; --surface: #FFFFFF;
+  --separator: rgba(60,60,67,0.20); --fill: rgba(120,120,128,0.12);
+  --label: #000000; --label-2: rgba(60,60,67,0.60); --label-3: rgba(60,60,67,0.30);
+  --accent: #007AFF; --green: #34C759; --red: #FF3B30; --orange: #FF9500;
+  --r-md: 10px; --r-lg: 14px; --r-xl: 22px;
+  --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px; --sp-8: 32px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000; --surface: #1C1C1E;
+    --separator: rgba(84,84,88,0.65); --fill: rgba(120,120,128,0.24);
+    --label: #FFFFFF; --label-2: rgba(235,235,245,0.60); --label-3: rgba(235,235,245,0.30);
+    --accent: #0A84FF; --green: #30D158; --red: #FF453A; --orange: #FF9F0A;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; font-family: var(--font); font-size: 17px; line-height: 1.47; color: var(--label);
+  background: var(--bg); -webkit-font-smoothing: antialiased; -webkit-user-select: none; user-select: none;
+  touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  padding-bottom: calc(var(--sp-8) + env(safe-area-inset-bottom)); }
+input, textarea { -webkit-user-select: text; user-select: text; font: inherit; color: inherit; }
+.ic { width: 20px; height: 20px; display: block; }
+.wrap { max-width: 560px; margin: 0 auto; padding: 0 var(--sp-4); }
+
+.nav { position: sticky; top: 0; z-index: 10; padding-top: env(safe-area-inset-top);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+.nav-in { max-width: 560px; margin: 0 auto; padding: var(--sp-3) var(--sp-4);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.nav h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.left { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.home-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--r-md);
+  background: var(--fill); color: var(--label-2); flex: none; text-decoration: none; }
+.home-btn:active { opacity: 0.4; }
+.nav-total { text-align: right; line-height: 1.15; }
+.nav-total small { display: block; font-size: 11px; color: var(--label-2); }
+.nav-total b { font-size: 20px; font-variant-numeric: tabular-nums; }
+
+.head-lb { font-size: 13px; color: var(--label-2); margin: var(--sp-6) var(--sp-3) 0;
+  display: flex; justify-content: space-between; align-items: center; }
+.list { background: var(--surface); border-radius: var(--r-lg); overflow: hidden; margin-top: var(--sp-2); }
+.row { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding: 6px var(--sp-4); }
+.row + .row { box-shadow: inset 0 0.5px 0 var(--separator); }
+.row .n { flex: 1; min-width: 0; font-size: 16px; }
+.row .n small { display: block; font-size: 12px; color: var(--label-2); line-height: 1.3; }
+
+/* 金種の行 */
+.dn { width: 62px; flex: none; font-weight: 600; font-size: 17px; }
+.dn small { display: block; font-size: 11px; font-weight: 400; color: var(--label-2); line-height: 1.2; }
+.step { display: flex; align-items: center; gap: 6px; flex: none; }
+.sb { width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--fill); color: var(--accent);
+  display: grid; place-items: center; cursor: pointer; padding: 0; }
+.sb:active { opacity: 0.4; }
+.cnt { width: 64px; height: 40px; border: 0; border-radius: var(--r-md); background: var(--fill);
+  text-align: center; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 0 4px; }
+.cnt:focus, .money:focus, .txt:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+.unit { font-size: 13px; color: var(--label-2); width: 14px; flex: none; }
+.sub { flex: 1; text-align: right; font-variant-numeric: tabular-nums; font-size: 15px; color: var(--label-2); min-width: 0; }
+.sub.on { color: var(--label); }
+.total-row { min-height: 60px; }
+.total-row .n { font-weight: 600; }
+.big { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+.money { width: 132px; height: 40px; border: 0; border-radius: var(--r-md); background: var(--fill);
+  text-align: right; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 0 10px; flex: none; }
+.txt { flex: 1; min-width: 0; height: 40px; border: 0; border-radius: var(--r-md); background: var(--fill); padding: 0 10px; font-size: 16px; }
+.val { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.seg { display: flex; padding: 2px; background: var(--fill); border-radius: 9px; flex: none; }
+.seg button { min-height: 30px; padding: 0 12px; border: 0; border-radius: 7px; background: none; font: inherit;
+  font-size: 13px; font-weight: 590; color: var(--label); cursor: pointer; }
+.seg button[aria-selected="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.mini { border: 0; background: none; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; padding: 6px 0; }
+.mini:active { opacity: 0.4; }
+.mini.danger { color: var(--red); }
+.status { font-size: 12px; color: var(--label-2); padding: 0 var(--sp-4) 10px; margin-top: -4px; }
+.status.err { color: var(--red); }
+.status.warn { color: var(--orange); }
+
+.result { background: var(--surface); border-radius: var(--r-xl); padding: var(--sp-6); margin-top: var(--sp-3); text-align: center; }
+.result .k { font-size: 15px; color: var(--label-2); }
+.result .v { font-size: 52px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.result .j { display: inline-block; margin-top: var(--sp-2); padding: 4px 14px; border-radius: 999px; font-size: 15px; font-weight: 600;
+  background: var(--fill); color: var(--label-2); }
+.result.ok .v { color: var(--green); } .result.ok .j { background: var(--green); color: #fff; }
+.result.ng .v { color: var(--red); }   .result.ng .j { background: var(--red); color: #fff; }
+
+.btn { display: block; width: 100%; min-height: 52px; border: 0; border-radius: var(--r-lg); font: inherit; font-weight: 600;
+  cursor: pointer; margin-top: var(--sp-3); }
+.btn:active { opacity: 0.6; }
+.btn-filled { background: var(--accent); color: #fff; }
+.btn-tinted { background: var(--fill); color: var(--accent); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+
+.h { padding: 10px var(--sp-4); }
+.h + .h { box-shadow: inset 0 0.5px 0 var(--separator); }
+.h-top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.h-time { font-weight: 600; }
+.h-time small { font-weight: 400; color: var(--label-2); font-size: 13px; margin-left: 6px; }
+.badge { padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; }
+.badge.ok { background: var(--green); } .badge.ng { background: var(--red); }
+.h-sub { font-size: 13px; color: var(--label-2); font-variant-numeric: tabular-nums; }
+.h-act { display: flex; gap: var(--sp-4); }
+.pend { font-size: 11px; font-weight: 600; color: var(--orange); margin-left: 6px; }
+.empty { padding: var(--sp-4); font-size: 15px; color: var(--label-2); }
+.cap { font-size: 13px; color: var(--label-2); margin: var(--sp-2) var(--sp-3) 0; }
+
+.login { max-width: 400px; margin: 18vh auto 0; padding: 0 var(--sp-4); }
+.login h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 var(--sp-2); }
+.login p { color: var(--label-2); font-size: 15px; margin: 0 0 var(--sp-6); }
+.login .field { width: 100%; min-height: 44px; padding: var(--sp-2) var(--sp-3); border: 0; border-radius: var(--r-md);
+  background: var(--surface); margin-bottom: var(--sp-3); }
+.login .field:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.login .back { display: block; text-align: center; margin-top: var(--sp-4); font-size: 15px; color: var(--accent); text-decoration: none; }
+.err-t { min-height: 20px; font-size: 13px; color: var(--red); margin-bottom: var(--sp-2); }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+  background: rgba(40,40,42,0.92); color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 15px;
+  opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 20; white-space: nowrap; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+
+<!-- ログイン（管理アプリと同じパスワード） -->
+<section class="login" id="loginView" hidden>
+  <h1>定時点検</h1>
+  <p>管理者パスワードを入力してください。</p>
+  <input class="field" id="pass" type="password" placeholder="パスワード" autocomplete="current-password">
+  <div class="err-t" id="loginErr"></div>
+  <button class="btn btn-filled" id="loginBtn" style="margin-top:0">ログイン</button>
+  <a class="back" href="index.html">メニューに戻る</a>
+</section>
+
+<!-- 本体 -->
+<div id="appView" hidden>
+<header class="nav">
+  <div class="nav-in">
+    <div class="left">
+      <a class="home-btn" href="index.html" aria-label="メニュー">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10.5V19h11v-8.5"/></svg>
+      </a>
+      <h1>定時点検</h1>
+    </div>
+    <div class="nav-total"><small>現金合計</small><b id="navTotal">¥0</b></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <p class="head-lb"><span>1. 現金を数える</span><button class="mini danger" id="clearBtn">枚数をクリア</button></p>
+  <div class="list" id="denoms"></div>
+
+  <p class="head-lb"><span>2. 売上と照合</span></p>
+  <div class="list">
+    <div class="row">
+      <div class="n">釣銭準備金<small>開店時にレジへ入れた額</small></div>
+      <input class="money" id="float" type="text" inputmode="numeric" placeholder="0" autocomplete="off">
+    </div>
+    <div class="row">
+      <div class="n">レジから出した額<small>中間回収・買い出し・両替差など</small></div>
+      <input class="money" id="out" type="text" inputmode="numeric" placeholder="0" autocomplete="off">
+    </div>
+    <div class="row">
+      <div class="n">売上金額<small><button class="mini" id="refetch">販売アプリから再取得</button></small></div>
+      <div class="seg" id="scope">
+        <button data-s="today" aria-selected="true">本日</button>
+        <button data-s="total" aria-selected="false">全期間</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="n"><small id="salesSrc">未取得</small></div>
+      <input class="money" id="sales" type="text" inputmode="numeric" placeholder="0" autocomplete="off">
+    </div>
+    <div class="row">
+      <div class="n">あるべき現金<small>準備金 ＋ 売上 − 出した額</small></div>
+      <span class="val" id="expected">¥0</span>
+    </div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="k">差異（実際の現金 − あるべき現金）</div>
+    <div class="v" id="diff">¥0</div>
+    <div class="j" id="judge">未入力</div>
+  </div>
+
+  <p class="head-lb"><span>3. 記録する</span></p>
+  <div class="list">
+    <div class="row"><div class="dn" style="font-weight:400;font-size:16px">担当</div><input class="txt" id="staff" type="text" maxlength="20" placeholder="点検した人" autocomplete="off"></div>
+    <div class="row"><div class="dn" style="font-weight:400;font-size:16px">メモ</div><input class="txt" id="memo" type="text" maxlength="100" placeholder="差異の理由など（任意）" autocomplete="off"></div>
+  </div>
+  <button class="btn btn-filled" id="recBtn" disabled>この点検を記録</button>
+
+  <p class="head-lb"><span id="histLb">点検履歴</span><button class="mini" id="csvBtn">CSV書き出し</button></p>
+  <div class="list" id="history"></div>
+  <p class="cap">販売アプリの売上は「注文送信済み・取消を除く」金額です。数え始める前に受付を一旦止め、数え終わった直後に再取得すると正確です。</p>
+  <button class="btn btn-tinted" id="lockBtn">ロックする</button>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// 金種（必要なら {v:5,l:'5円',k:'硬貨'} などを足す）
+const DENOMS = [
+  { v: 10000, l: '1万円', k: '紙幣' }, { v: 5000, l: '5千円', k: '紙幣' }, { v: 1000, l: '千円', k: '紙幣' },
+  { v: 500, l: '500円', k: '硬貨' }, { v: 100, l: '100円', k: '硬貨' }, { v: 50, l: '50円', k: '硬貨' }, { v: 10, l: '10円', k: '硬貨' }
+];
+const KEY = 'tenken_v1';
+const DEF = { counts: {}, float: 0, out: 0, scope: 'today', sales: 0, salesSrc: 'none', salesAt: 0, staff: '', memo: '', history: [] };
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const yen = n => (n < 0 ? '−' : '') + '¥' + Math.abs(Math.round(n)).toLocaleString('ja-JP');
+const signed = n => n === 0 ? '¥0' : (n > 0 ? '+' : '−') + '¥' + Math.abs(n).toLocaleString('ja-JP');
+const pad = n => String(n).padStart(2, '0');
+const hm = ts => { const d = new Date(ts); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const md = ts => { const d = new Date(ts); return (d.getMonth() + 1) + '/' + d.getDate(); };
+// 全角数字も受け付け、数字以外は捨てる
+const int = s => {
+  const t = String(s == null ? '' : s).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[^\d]/g, '').slice(0, 9);
+  const n = parseInt(t, 10); return Number.isFinite(n) ? n : 0;
+};
+
+// ---------- パスワード（管理アプリとログイン状態を共有） ----------
+const LOCK_MS = 10 * 60 * 1000;                 // 10分操作がなければ自動ロック
+const K_KEY = 'churro_admin_key', K_SEEN = 'churro_admin_seen';
+function touch() { try { localStorage.setItem(K_SEEN, String(Date.now())); } catch (e) {} }
+const seenAt = () => { try { return Number(localStorage.getItem(K_SEEN) || 0); } catch (e) { return 0; } };
+let key = (() => {
+  try {
+    const k = localStorage.getItem(K_KEY) || '';
+    if (k && Date.now() - seenAt() > LOCK_MS) { localStorage.removeItem(K_KEY); return ''; }
+    return k;
+  } catch (e) { return ''; }
+})();
+
+let st = load(), remote = null;
+function load() {
+  try {
+    const o = JSON.parse(localStorage.getItem(KEY) || '{}');
+    const s = Object.assign({}, DEF, o && typeof o === 'object' ? o : {});
+    if (!s.counts || typeof s.counts !== 'object') s.counts = {};
+    if (!Array.isArray(s.history)) s.history = [];
+    return s;
+  } catch (e) { return JSON.parse(JSON.stringify(DEF)); }
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
+
+const cashOf = c => DENOMS.reduce((a, d) => a + d.v * (Number(c[d.v]) || 0), 0);
+
+// ---------- 描画 ----------
+function buildDenoms() {
+  $('#denoms').innerHTML = DENOMS.map(d => `
+    <div class="row">
+      <div class="dn">${d.l}<small>${d.k}</small></div>
+      <div class="step">
+        <button class="sb" data-d="${d.v}" data-step="-1" aria-label="${d.l}を1減らす"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 12h12"/></svg></button>
+        <input class="cnt" id="c${d.v}" data-d="${d.v}" type="text" inputmode="numeric" placeholder="0" autocomplete="off" aria-label="${d.l}の枚数">
+        <button class="sb" data-d="${d.v}" data-step="1" aria-label="${d.l}を1増やす"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 12h12M12 6v12"/></svg></button>
+      </div>
+      <span class="unit">枚</span>
+      <span class="sub" id="s${d.v}">¥0</span>
+    </div>`).join('') +
+    `<div class="row total-row"><div class="n">現金合計</div><span class="big" id="cash">¥0</span></div>`;
+}
+function fillInputs() {
+  DENOMS.forEach(d => { const n = Number(st.counts[d.v]) || 0; $('#c' + d.v).value = n ? n : ''; });
+  $('#float').value = st.float ? st.float.toLocaleString('ja-JP') : '';
+  $('#out').value = st.out ? st.out.toLocaleString('ja-JP') : '';
+  $('#sales').value = st.sales ? st.sales.toLocaleString('ja-JP') : '';
+  $('#staff').value = st.staff || ''; $('#memo').value = st.memo || '';
+}
+function calc() {
+  const cash = cashOf(st.counts);
+  DENOMS.forEach(d => {
+    const n = Number(st.counts[d.v]) || 0, el = $('#s' + d.v);
+    el.textContent = yen(d.v * n); el.classList.toggle('on', n > 0);
+  });
+  const expected = st.float + st.sales - st.out, diff = cash - expected;
+  $('#cash').textContent = yen(cash); $('#navTotal').textContent = yen(cash);
+  $('#expected').textContent = yen(expected);
+  const r = $('#result');
+  if (cash === 0) { r.className = 'result'; $('#diff').textContent = '¥0'; $('#judge').textContent = '枚数を入力してください'; }
+  else {
+    r.className = 'result ' + (diff === 0 ? 'ok' : 'ng');
+    $('#diff').textContent = signed(diff);
+    $('#judge').textContent = diff === 0 ? '一致' : diff > 0 ? '現金が ' + yen(diff) + ' 多い' : '現金が ' + yen(-diff) + ' 不足';
+  }
+  $('#recBtn').disabled = cash === 0;
+  document.querySelectorAll('#scope button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.s === st.scope)));
+  const src = $('#salesSrc');
+  src.textContent = st.salesSrc === 'auto' ? '自動取得 ' + hm(st.salesAt) + ' 時点（' + (st.scope === 'today' ? '本日' : '全期間') + '）'
+    : st.salesSrc === 'manual' ? '手入力の金額' : (GAS_URL ? '未取得' : 'URL未設定：売上を手入力してください');
+  return { cash, expected, diff };
+}
+function renderHistory() {
+  const el = $('#history'), un = st.history.filter(x => !x.synced).length;
+  $('#histLb').textContent = '点検履歴（' + (!GAS_URL ? 'この端末に保存'
+    : syncState === 'err' ? '通信エラー' + (un ? '・未送信 ' + un + '件' : '')
+    : syncAt ? '全端末で共有・更新 ' + hm(syncAt) : '全端末で共有・読み込み中') + '）';
+  if (!st.history.length) { el.innerHTML = '<div class="empty">まだ記録がありません</div>'; return; }
+  el.innerHTML = st.history.map(h => `
+    <div class="h">
+      <div class="h-top">
+        <span class="h-time">${md(h.ts)} ${hm(h.ts)}<small>${esc(h.staff || '')}</small>${GAS_URL && !h.synced ? '<span class="pend">未送信</span>' : ''}</span>
+        <span class="badge ${h.diff === 0 ? 'ok' : 'ng'}">${h.diff === 0 ? '一致' : signed(h.diff)}</span>
+      </div>
+      <div class="h-sub">現金 ${yen(h.cash)} ／ 売上 ${yen(h.sales)} ／ 準備金 ${yen(h.float)}${h.out ? ' ／ 出 ' + yen(h.out) : ''}</div>
+      <div class="h-sub">${esc(breakdown(h.counts) || '—')}</div>
+      ${h.memo ? `<div class="h-sub">メモ：${esc(h.memo)}</div>` : ''}
+      <div class="h-act"><button class="mini" data-copy="${esc(h.id)}">報告文をコピー</button><button class="mini danger" data-del="${esc(h.id)}">削除</button></div>
+    </div>`).join('');
+}
+const breakdown = c => DENOMS.filter(d => Number(c[d.v]) > 0).map(d => d.l + '×' + c[d.v]).join('　');
+
+function report(h) {
+  return ['【会計 定時点検】' + md(h.ts) + ' ' + hm(h.ts) + (h.staff ? '　担当：' + h.staff : ''),
+    breakdown(h.counts) || '（現金なし）',
+    '現金合計 ' + yen(h.cash),
+    '釣銭準備金 ' + yen(h.float) + ' ／ 売上（' + (h.scope === 'today' ? '本日' : '全期間') + (h.src === 'manual' ? '・手入力' : '') + '） ' + yen(h.sales) + (h.out ? ' ／ レジから出した額 ' + yen(h.out) : ''),
+    'あるべき現金 ' + yen(h.expected),
+    '差異 ' + signed(h.diff) + (h.diff === 0 ? '（一致）' : h.diff > 0 ? '（過剰）' : '（不足）')
+  ].concat(h.memo ? ['メモ：' + h.memo] : []).join('\n');
+}
+
+// ---------- 売上の取得 ----------
+async function fetchSales(manual) {
+  if (!GAS_URL) { if (manual) toast('GAS_URL が未設定です'); return; }
+  try {
+    const r = await fetch(GAS_URL + '?action=sales&t=' + Date.now());
+    const j = await r.json();
+    if (!j || !j.ok || !j.sales) throw new Error('bad response');
+    remote = j.sales; if (manual || st.salesSrc !== 'manual') applyRemote(); // 手入力は自動で上書きしない
+    if (manual) toast('売上を更新しました');
+  } catch (e) {
+    if (manual) toast('取得に失敗しました。手入力してください');
+  }
+}
+function applyRemote() {
+  if (!remote) return;
+  const cur = st.scope === 'today' ? remote.today : remote.total;
+  const a = Math.max(0, Math.round(Number(cur && cur.amount) || 0));
+  st.sales = a; st.salesSrc = 'auto'; st.salesAt = Date.now();
+  $('#sales').value = a ? a.toLocaleString('ja-JP') : '';
+  save(); calc();
+}
+
+// ---------- 履歴の共有（GAS のスプレッドシートに保存） ----------
+let syncState = 'idle', syncAt = 0, syncing = false;
+async function post(body) {
+  body.key = key;
+  // text/plain で送る（GAS はプリフライト付きのリクエストを受けられないため）
+  const r = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (j && j.error === 'auth') { logout('パスワードが違います。もう一度ログインしてください'); throw new Error('auth'); }
+  if (!j || !j.ok) throw new Error('ng'); return j;
+}
+// サーバから来た値は型を整えてから使う
+function normItem(o) {
+  if (!o || typeof o !== 'object' || !/^[A-Za-z0-9]{6,40}$/.test(String(o.id))) return null;
+  const num = v => { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : 0; };
+  const counts = {}, c = o.counts && typeof o.counts === 'object' ? o.counts : {};
+  DENOMS.forEach(d => { const n = num(c[d.v]); if (n > 0) counts[d.v] = n; });
+  return { id: String(o.id), ts: num(o.ts), counts, cash: num(o.cash), float: num(o.float), out: num(o.out), sales: num(o.sales),
+    scope: o.scope === 'total' ? 'total' : 'today', src: o.src === 'manual' ? 'manual' : 'auto', expected: num(o.expected), diff: num(o.diff),
+    staff: String(o.staff || '').slice(0, 20), memo: String(o.memo || '').slice(0, 100), synced: true };
+}
+async function syncHistory() {
+  if (!GAS_URL || !key || syncing) return;
+  syncing = true;
+  try {
+    // 1) この端末にだけある記録を先に送る（古い順）
+    for (const h of st.history.filter(x => !x.synced).reverse()) { await post({ action: 'tenkenAdd', item: h }); h.synced = true; }
+    // 2) 全端末分の一覧を受け取る
+    const r = await fetch(GAS_URL + '?action=tenken&key=' + encodeURIComponent(key) + '&t=' + Date.now());
+    const j = await r.json();
+    if (j && j.error === 'auth') { logout('パスワードが違います。もう一度ログインしてください'); throw new Error('auth'); }
+    if (!j || !j.ok || !Array.isArray(j.items)) throw new Error('bad response');
+    const items = j.items.map(normItem).filter(Boolean), ids = new Set(items.map(x => x.id));
+    const pending = st.history.filter(x => !x.synced && !ids.has(x.id));   // 同期中に増えた分は残す
+    st.history = pending.concat(items).sort((a, b) => b.ts - a.ts);
+    syncState = 'ok'; syncAt = Date.now();
+  } catch (e) { syncState = 'err'; }
+  syncing = false; save(); renderHistory();
+}
+const newId = () => { const a = new Uint32Array(3); crypto.getRandomValues(a); return Array.from(a, x => x.toString(36)).join(''); };
+
+// ---------- 操作 ----------
+let toastT = 0;
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
+// 確認ダイアログを使わない2段階ボタン
+function twoStep(btn, fn) {
+  if (btn.dataset.armed) { delete btn.dataset.armed; btn.textContent = btn.dataset.label; fn(); return; }
+  btn.dataset.label = btn.textContent; btn.dataset.armed = '1'; btn.textContent = 'もう一度押して実行';
+  setTimeout(() => { if (btn.isConnected && btn.dataset.armed) { delete btn.dataset.armed; btn.textContent = btn.dataset.label; } }, 3000);
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); }
+  catch (e) { const a = document.createElement('textarea'); a.value = t; a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (_) {} a.remove(); }
+  toast('コピーしました');
+}
+
+$('#denoms').addEventListener('click', e => {
+  const b = e.target.closest('[data-step]'); if (!b) return;
+  const k = b.dataset.d, n = Math.max(0, Math.min(99999, (Number(st.counts[k]) || 0) + Number(b.dataset.step)));
+  st.counts[k] = n; $('#c' + k).value = n ? n : ''; save(); calc();
+});
+$('#denoms').addEventListener('input', e => {
+  const i = e.target.closest('.cnt'); if (!i) return;
+  const n = Math.min(99999, int(i.value)); st.counts[i.dataset.d] = n;
+  const v = n ? String(n) : ''; if (i.value !== v) i.value = v;
+  save(); calc();
+});
+$('#denoms').addEventListener('focusin', e => { if (e.target.classList.contains('cnt')) e.target.select(); });
+
+[['float', 'float'], ['out', 'out'], ['sales', 'sales']].forEach(([id, key]) => {
+  const el = $('#' + id);
+  el.addEventListener('input', () => { st[key] = int(el.value); if (key === 'sales') st.salesSrc = 'manual'; save(); calc(); });
+  el.addEventListener('focus', () => { el.value = st[key] ? String(st[key]) : ''; el.select(); });
+  el.addEventListener('blur', () => { el.value = st[key] ? st[key].toLocaleString('ja-JP') : ''; });
+});
+$('#staff').addEventListener('input', e => { st.staff = e.target.value.slice(0, 20); save(); });
+$('#memo').addEventListener('input', e => { st.memo = e.target.value.slice(0, 100); save(); });
+
+$('#scope').addEventListener('click', e => {
+  const b = e.target.closest('[data-s]'); if (!b) return;
+  st.scope = b.dataset.s === 'total' ? 'total' : 'today'; save();
+  if (remote) applyRemote(); else { calc(); fetchSales(false); }
+});
+$('#refetch').addEventListener('click', () => fetchSales(true));
+$('#clearBtn').addEventListener('click', e => twoStep(e.currentTarget, () => { st.counts = {}; save(); fillInputs(); calc(); toast('枚数をクリアしました'); }));
+
+$('#recBtn').addEventListener('click', () => {
+  const c = calc(); if (c.cash === 0) return;
+  st.history.unshift({ id: newId(), ts: Date.now(), synced: false,
+    counts: Object.assign({}, st.counts), cash: c.cash, float: st.float, out: st.out, sales: st.sales,
+    scope: st.scope, src: st.salesSrc, expected: c.expected, diff: c.diff, staff: st.staff.trim(), memo: st.memo.trim() });
+  if (st.history.length > 300) st.history.length = 300;
+  st.counts = {}; st.memo = ''; save(); fillInputs(); calc(); renderHistory();
+  toast('記録しました'); $('#history').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  syncHistory();
+});
+$('#history').addEventListener('click', e => {
+  const c = e.target.closest('[data-copy]'), d = e.target.closest('[data-del]');
+  if (c) { const h = st.history.find(x => x.id === c.dataset.copy); if (h) copyText(report(h)); }
+  if (d) twoStep(d, async () => {
+    const id = d.dataset.del, h = st.history.find(x => x.id === id); if (!h) return;
+    if (GAS_URL && h.synced) {     // 共有済みの記録は全端末から消す（シート上は「deleted」の印が残る）
+      try { await post({ action: 'tenkenDel', id }); } catch (e) { toast('削除できませんでした（通信エラー）'); return; }
+    }
+    st.history = st.history.filter(x => x.id !== id); save(); renderHistory();
+  });
+});
+$('#csvBtn').addEventListener('click', () => {
+  if (!st.history.length) { toast('記録がありません'); return; }
+  // 先頭が = + - @ のセルは数式として解釈されないよう ' を付ける
+  const cell = v => { let s = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(s) && typeof v !== 'number') s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+  const head = ['日時', '担当'].concat(DENOMS.map(d => d.l + '(枚)'), ['現金合計', '釣銭準備金', 'レジから出した額', '売上', '売上範囲', '売上の取得', 'あるべき現金', '差異', 'メモ']);
+  const rows = st.history.slice().reverse().map(h => {
+    const d = new Date(h.ts);
+    return [d.getFullYear() + '/' + pad(d.getMonth() + 1) + '/' + pad(d.getDate()) + ' ' + hm(h.ts), h.staff]
+      .concat(DENOMS.map(x => Number(h.counts[x.v]) || 0), [h.cash, h.float, h.out, h.sales, h.scope === 'today' ? '本日' : '全期間', h.src === 'manual' ? '手入力' : '自動', h.expected, h.diff, h.memo]);
+  });
+  const csv = '﻿' + [head].concat(rows).map(r => r.map(cell).join(',')).join('\r\n');
+  const a = document.createElement('a'), u = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const n = new Date(); a.href = u; a.download = '定時点検_' + n.getFullYear() + pad(n.getMonth() + 1) + pad(n.getDate()) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+});
+
+// ---------- ログイン・ロック ----------
+function showApp() { $('#loginView').hidden = true; $('#appView').hidden = false; }
+function logout(msg) {
+  key = ''; try { localStorage.removeItem(K_KEY); localStorage.removeItem(K_SEEN); } catch (e) {}
+  $('#pass').value = ''; $('#appView').hidden = true; $('#loginView').hidden = false;
+  $('#loginErr').textContent = msg || '';
+}
+async function login() {
+  const k = $('#pass').value.trim(), err = $('#loginErr'), btn = $('#loginBtn');
+  if (!k) return;
+  if (!GAS_URL) { err.textContent = 'Tenken.html 内の GAS_URL を設定してください'; return; }
+  btn.disabled = true; err.textContent = '確認中…';
+  try {   // パスワードの正否はサーバ（GAS）が判定する
+    const r = await fetch(GAS_URL + '?action=tenken&key=' + encodeURIComponent(k) + '&t=' + Date.now());
+    const j = await r.json();
+    if (j && j.ok) {
+      key = k; try { localStorage.setItem(K_KEY, k); } catch (e) {}
+      touch(); err.textContent = ''; $('#pass').value = ''; startApp();
+    } else err.textContent = j && j.error === 'auth' ? 'パスワードが違います' : '確認できませんでした。GASの更新を確認してください';
+  } catch (e) { err.textContent = '通信できませんでした。電波を確認してください'; }
+  btn.disabled = false;
+}
+function startApp() { showApp(); fetchSales(false); syncHistory(); }
+function checkLock() { if (key && Date.now() - seenAt() > LOCK_MS) logout('しばらく操作がなかったためロックしました'); }
+
+$('#loginBtn').addEventListener('click', login);
+$('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+$('#lockBtn').addEventListener('click', () => logout(''));
+['click', 'input', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { if (key) touch(); }, { passive: true }));
+
+buildDenoms(); fillInputs(); calc(); renderHistory();
+if (key) { touch(); startApp(); } else $('#loginView').hidden = false;
+setInterval(() => { checkLock(); if (!document.hidden) syncHistory(); }, 20000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkLock(); syncHistory(); } });
+</script>
+</body>
+</html>
