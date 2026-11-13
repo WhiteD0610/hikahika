@@ -105,7 +105,7 @@ input { -webkit-user-select: text; user-select: text; font: inherit; color: inhe
     <div class="bar"><i id="bar"></i></div>
     <div class="st" id="st">読み込み中…</div>
   </div>
-  <p class="cap">レジ・キッチンの端末でホームを開き、「カメラでQRを読み取る」でこのQRを読むとログインできます。QRは15分ごとに自動で切り替わります。10分操作がないとこの画面はロックされます。</p>
+  <p class="cap">レジ・キッチンの端末でホームを開き、「カメラでQRを読み取る」でこのQRを読むとログインできます。QRは1分ごとに自動で切り替わります。10分操作がないとこの画面はロックされます。</p>
   <button class="btn btn-tinted" id="lockBtn">ロックする</button>
 </main>
 </div>
@@ -174,20 +174,20 @@ function draw(text) {
 function hideQr() { code = ''; $('#qrBox').classList.add('off'); const cv = $('#qr'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }
 
 // ---------- カウントダウン ----------
-let refetchedFor = 0;
+let expiryFetchAt = 0;
 function tick() {
   if (!key) return;
   const left = expiresAt - now();
-  if (!expiresAt || !code) { $('#left').textContent = '--:--'; $('#bar').style.transform = 'scaleX(0)'; return; }
-  if (left <= 0) {                               // 期限切れ：古いQRは消して取り直す
-    hideQr(); $('#left').textContent = '00:00'; $('#bar').style.transform = 'scaleX(0)';
-    if (refetchedFor !== expiresAt) { refetchedFor = expiresAt; setSt('新しいQRに切り替えています…', false); setTimeout(refresh, 800); }
+  if (!expiresAt) { $('#left').textContent = '--:--'; $('#bar').style.transform = 'scaleX(0)'; return; }
+  if (left <= 0 || !code) {                      // 期限切れ：古いQRは即座に消して取り直す
+    if (code) hideQr(); $('#left').textContent = '00:00'; $('#bar').style.transform = 'scaleX(0)';
+    if (Date.now() - expiryFetchAt > 2000) { expiryFetchAt = Date.now(); setSt('新しいQRに切り替えています…', false); refresh(); }   // 取れるまで2秒おきに取り直す
     return;
   }
   const s = Math.ceil(left / 1000);
   $('#left').textContent = pad(Math.floor(s / 60)) + ':' + pad(s % 60);
-  $('#left').classList.toggle('soon', s <= 60);
-  $('#bar').style.transform = 'scaleX(' + Math.min(1, left / (15 * 60 * 1000)) + ')';
+  $('#left').classList.toggle('soon', s <= 10);
+  $('#bar').style.transform = 'scaleX(' + Math.min(1, left / (60 * 1000)) + ')';
 }
 
 // ---------- 画面を消灯させない（対応ブラウザのみ） ----------
