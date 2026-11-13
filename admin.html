@@ -298,8 +298,13 @@ async function fetchAll(first) {
       orders: j.orders.map(r => ({
         id: r[0], ticket: r[1], ts: r[2],
         items: JSON.parse(r[3] || '[]').map(it => ({ productId: it[0], name: it[1], price: it[2], qty: it[3] })),
-        status: r[4], doneAt: r[5], reason: r[6] || '', disposition: r[7] || ''
-      })).sort((a, b) => a.ts - b.ts),
+        status: r[4], doneAt: r[5], reason: r[6] || '', disposition: r[7] || '', paid: r[8]
+      })).map(o => {                               // セット割引 = 定価の合計 − 実際の金額
+        const sum = o.items.reduce((a, i) => a + i.price * i.qty, 0);
+        o.amount = typeof o.paid === 'number' ? Math.min(sum, Math.max(0, o.paid)) : sum;
+        o.discount = sum - o.amount;
+        return o;
+      }).sort((a, b) => a.ts - b.ts),
       stock: j.stock || null,
       surplus: j.surplus || {}
     };
@@ -365,7 +370,8 @@ function compute() {
   const products = order.filter(id => per[id]).map(id => {
     const x = per[id]; x.material = x.qty * x.unitCost; x.gross = x.revenue - x.material; return x;
   });
-  const revenue = products.reduce((a, p) => a + p.revenue, 0);
+  const discount = act.reduce((a, o) => a + (o.discount || 0), 0);          // セット割引の合計
+  const revenue = products.reduce((a, p) => a + p.revenue, 0) - discount;   // 売上は割引後
   const material = products.reduce((a, p) => a + p.material, 0);
   const qty = products.reduce((a, p) => a + p.qty, 0);
   const fixedTotal = cfg.fixedCosts.reduce((a, f) => a + (Number(f.amount) || 0), 0);
@@ -383,9 +389,10 @@ function compute() {
     const h = new Date(o.ts).getHours();
     matrix[h].orders++;
     o.items.forEach(it => { matrix[h][it.productId] += it.qty; matrix[h].total += it.qty; matrix[h].revenue += it.price * it.qty; });
+    matrix[h].revenue -= (o.discount || 0);
   });
 
-  return { rows, act, products, revenue, material, fixed, fixedTotal, gross, qty,
+  return { rows, act, products, revenue, discount, material, fixed, fixedTotal, gross, qty,
            orderCount: act.length, hours, matrix, voids: rows.length - act.length };
 }
 
@@ -442,7 +449,7 @@ function renderSummary(c) {
     <section class="group">
       <p class="group-head" style="margin-top:24px"><span>収支</span></p>
       <div class="list">
-        <div class="row"><span class="row-label">売上</span><span class="row-value">${yen(c.revenue)}</span></div>
+        <div class="row"><span class="row-label">売上${c.discount ? '<div class="row-sub">セット割引 −' + yen(c.discount) + ' を差し引き済み</div>' : ''}</span><span class="row-value">${yen(c.revenue)}</span></div>
         <div class="row"><span class="row-label">材料原価</span><span class="row-value minus-v">−${yen(c.material)}</span></div>
         ${fixedRow}
         <div class="row total"><span class="row-label">粗利</span><span class="row-value ${c.gross < 0 ? 'neg' : ''}">${yen(c.gross)}</span></div>
@@ -519,7 +526,7 @@ function drawChart(c) {
 
 function renderLog(c) {
   const list = (showVoid ? c.rows : c.act).slice().reverse();
-  const st = { waiting: '調理中', ready: '準備完了', done: 'お渡し済', void: '取消' };
+  const st = { waiting: 'お渡し待ち', ready: 'お渡し待ち', done: 'お渡し済', void: '取消' };
   $('#main').innerHTML = `
     <section class="group">
       <div class="list">
@@ -533,9 +540,9 @@ function renderLog(c) {
         ${list.length ? list.slice(0, 300).map(o => `
           <div class="row log ${o.status === 'void' ? 'void' : ''}">
             <span class="t">${range === 'all' ? dayLabel(dayKey(o.ts)).replace(/（.）/, '') + ' ' : ''}${hms(o.ts)}</span>
-            <span class="row-label"><b>No.${o.ticket}</b> ${esc(o.items.map(i => i.name + '×' + i.qty).join(' / '))}
+            <span class="row-label"><b>No.${o.ticket}</b> ${esc(o.items.map(i => i.name + '×' + i.qty).join(' / '))}${o.discount ? ' / セット割 −' + yen(o.discount) : ''}
               <div class="row-sub">${st[o.status] || o.status}${o.status === 'void' && o.reason ? '：' + esc(o.reason) : ''}${o.status === 'void' && o.disposition && o.disposition !== '—' ? '（' + esc(o.disposition) + '）' : ''}</div></span>
-            <span class="row-value">${yen(o.items.reduce((a, i) => a + i.price * i.qty, 0))}</span>
+            <span class="row-value">${yen(o.amount)}</span>
           </div>`).join('') : '<div class="row"><span class="row-label row-sub">データがありません</span></div>'}
       </div>
       ${list.length > 300 ? '<p class="cap">最新300組を表示中。全件はCSVかスプレッドシートで確認できます。</p>' : ''}
@@ -551,6 +558,10 @@ function exportCsv() {
     o.status === 'void' ? '取消' : o.status === 'done' ? 'お渡し済' : 'お渡し待ち',
     o.reason || '', o.disposition || ''
   ])));
+  data.orders.forEach(o => { if (o.discount) rows.push([                    // 割引は1注文1行で出す
+    dayKey(o.ts), hms(o.ts), o.ticket, 'セット割引', 1, -o.discount, 0, -o.discount,
+    o.status === 'void' ? '取消' : o.status === 'done' ? 'お渡し済' : 'お渡し待ち', o.reason || '', o.disposition || ''
+  ]); });
   const csv = '\uFEFF' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -630,6 +641,8 @@ function renderStock(c) {
 function renderSettings() {
   if (!draft) draft = clone(data.config);
   const fixedTotal = draft.fixedCosts.reduce((a, f) => a + (Number(f.amount) || 0), 0);
+  if (!draft.discount) draft.discount = { enabled: false, every: 2, off: 100, repeat: true };
+  const dc = draft.discount;
   $('#main').innerHTML = `
     <section class="group">
       <p class="group-head"><span>商品</span><span>同じ味は余剰在庫を共有</span></p>
@@ -645,6 +658,17 @@ function renderSettings() {
           <div class="frow"><button class="btn btn-plain red" data-delp="${i}" style="padding:0">この商品を削除</button></div>
         </div>`).join('')}
       <button class="btn btn-tinted block" id="addP" style="margin-top:12px">商品を追加</button>
+    </section>
+
+    <section class="group">
+      <p class="group-head"><span>セット割引</span><span>${dc.enabled ? 'ON' : 'OFF'}</span></p>
+      <div class="list" id="discBox">
+        <div class="frow"><label style="width:auto;flex:1">セット割引を使う</label><label class="sw"><input type="checkbox" data-d="enabled" ${dc.enabled ? 'checked' : ''}><span class="sw-track"></span></label></div>
+        <div class="frow"><label style="width:auto;flex:1">何個買うと</label><input class="field r" data-d="every" type="number" inputmode="numeric" min="1" value="${dc.every}" style="max-width:110px"><span class="unit">個</span></div>
+        <div class="frow"><label style="width:auto;flex:1">割引額</label><input class="field r" data-d="off" type="number" inputmode="numeric" min="0" value="${dc.off}" style="max-width:110px"><span class="unit">円</span></div>
+        <div class="frow"><label style="width:auto;flex:1">個数に応じて繰り返す<div class="row-sub">ON：${dc.every * 2}個で ${yen(dc.off * 2)} 引き／OFF：1注文1回</div></label><label class="sw"><input type="checkbox" data-d="repeat" ${dc.repeat !== false ? 'checked' : ''}><span class="sw-track"></span></label></div>
+      </div>
+      <p class="cap">ON/OFFは切り替えた時点で保存されます。受付画面には1分以内（再読み込みですぐ）に反映されます。</p>
     </section>
 
     <section class="group">
@@ -749,6 +773,9 @@ window.addEventListener('resize', () => { if (tab === 'hourly') render(true); })
 
 $('#main').addEventListener('change', e => {
   if (e.target.id === 'voidSw') { showVoid = e.target.checked; render(true); return; }
+  if (e.target.dataset.d === 'enabled' || e.target.dataset.d === 'repeat') {   // セット割引のスイッチは即保存
+    draft.discount[e.target.dataset.d] = e.target.checked; dirty = true; save(); return;
+  }
   const pc = e.target.closest('[data-pi]');
   if (pc && e.target.dataset.f === 'active') { draft.products[+pc.dataset.pi].active = e.target.checked; markDirty(); }
 });
@@ -759,6 +786,9 @@ $('#main').addEventListener('input', e => {
     const p = draft.products[+pc.dataset.pi];
     p[t.dataset.f] = (t.dataset.f === 'name' || t.dataset.f === 'flavor')
       ? t.value : Math.max(0, Math.round(Number(t.value) || 0));
+    markDirty();
+  } else if (t.dataset.d === 'every' || t.dataset.d === 'off') {
+    draft.discount[t.dataset.d] = Math.max(t.dataset.d === 'every' ? 1 : 0, Math.round(Number(t.value) || 0));
     markDirty();
   } else if (fc && t.dataset.g) {
     const f = draft.fixedCosts[+fc.dataset.fi];
