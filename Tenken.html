@@ -344,7 +344,7 @@ function report(h) {
 async function fetchSales(manual) {
   if (!GAS_URL) { if (manual) toast('GAS_URL が未設定です'); return; }
   try {
-    const r = await fetch(GAS_URL + '?action=sales&t=' + Date.now());
+    const r = await fetch(GAS_URL + '?action=sales&key=' + encodeURIComponent(key || '') + '&t=' + Date.now());
     const j = await r.json();
     if (!j || !j.ok || !j.sales) throw new Error('bad response');
     remote = j.sales; if (manual || st.salesSrc !== 'manual') applyRemote(); // 手入力は自動で上書きしない

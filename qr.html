@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="入場QR">
+<meta name="robots" content="noindex">
+<title>入場QR</title>
+<script>
+// ===== ここにGASのWebアプリURL（/exec で終わるもの）を貼る =====
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxPALiGXxYTYIFeYSu-rxp0tUIAB3Cdlr367EIkegSQUBscC3j20GNnxwiaiwWgaEgb/exec';
+// ================================================================
+</script>
+<style>
+:root {
+  --bg: #F2F2F7; --surface: #FFFFFF;
+  --separator: rgba(60,60,67,0.20); --fill: rgba(120,120,128,0.12);
+  --label: #000000; --label-2: rgba(60,60,67,0.60); --label-3: rgba(60,60,67,0.30);
+  --accent: #007AFF; --green: #34C759; --red: #FF3B30; --orange: #FF9500;
+  --r-md: 10px; --r-lg: 14px; --r-xl: 22px;
+  --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px; --sp-8: 32px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000; --surface: #1C1C1E;
+    --separator: rgba(84,84,88,0.65); --fill: rgba(120,120,128,0.24);
+    --label: #FFFFFF; --label-2: rgba(235,235,245,0.60); --label-3: rgba(235,235,245,0.30);
+    --accent: #0A84FF; --green: #30D158; --red: #FF453A; --orange: #FF9F0A;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+body { margin: 0; font-family: var(--font); font-size: 17px; line-height: 1.47; color: var(--label);
+  background: var(--bg); -webkit-font-smoothing: antialiased; -webkit-user-select: none; user-select: none;
+  touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  padding-bottom: calc(var(--sp-8) + env(safe-area-inset-bottom)); }
+input { -webkit-user-select: text; user-select: text; font: inherit; color: inherit; }
+.ic { width: 20px; height: 20px; display: block; }
+.wrap { max-width: 560px; margin: 0 auto; padding: 0 var(--sp-4); }
+.nav { position: sticky; top: 0; z-index: 10; padding-top: env(safe-area-inset-top);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+.nav-in { max-width: 560px; margin: 0 auto; padding: var(--sp-3) var(--sp-4); display: flex; align-items: center; gap: var(--sp-2); }
+.nav h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.home-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--r-md);
+  background: var(--fill); color: var(--label-2); flex: none; text-decoration: none; }
+.home-btn:active { opacity: 0.4; }
+.card { background: var(--surface); border-radius: var(--r-xl); padding: var(--sp-6); margin-top: var(--sp-3); text-align: center; }
+.qr-box { background: #fff; border-radius: var(--r-lg); padding: 12px; width: min(100%, 62vh); margin: 0 auto; aspect-ratio: 1 / 1; display: grid; place-items: center; }
+.qr-box canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.qr-box.off canvas { visibility: hidden; }
+.left-k { font-size: 15px; color: var(--label-2); margin-top: var(--sp-4); }
+.left-v { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.left-v.soon { color: var(--orange); }
+.bar { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; margin-top: var(--sp-3); }
+.bar i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left; }
+.st { min-height: 20px; font-size: 13px; color: var(--label-2); margin-top: var(--sp-3); }
+.st.err { color: var(--red); }
+.cap { font-size: 13px; color: var(--label-2); margin: var(--sp-3) var(--sp-3) 0; }
+.btn { display: block; width: 100%; min-height: 52px; border: 0; border-radius: var(--r-lg); font: inherit; font-weight: 600; cursor: pointer; margin-top: var(--sp-3); }
+.btn:active { opacity: 0.6; }
+.btn:disabled { opacity: 0.35; }
+.btn-filled { background: var(--accent); color: #fff; }
+.btn-tinted { background: var(--fill); color: var(--accent); }
+.login { max-width: 400px; margin: 18vh auto 0; padding: 0 var(--sp-4); }
+.login h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 var(--sp-2); }
+.login p { color: var(--label-2); font-size: 15px; margin: 0 0 var(--sp-6); }
+.login .field { width: 100%; min-height: 44px; padding: var(--sp-2) var(--sp-3); border: 0; border-radius: var(--r-md);
+  background: var(--surface); margin-bottom: var(--sp-3); }
+.login .field:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.login .back { display: block; text-align: center; margin-top: var(--sp-4); font-size: 15px; color: var(--accent); text-decoration: none; }
+.err-t { min-height: 20px; font-size: 13px; color: var(--red); margin-bottom: var(--sp-2); }
+</style>
+</head>
+<body>
+
+<!-- ログイン（管理アプリと同じパスワード） -->
+<section class="login" id="loginView" hidden>
+  <h1>入場QR</h1>
+  <p>管理者パスワードを入力してください。</p>
+  <input class="field" id="pass" type="password" placeholder="パスワード" autocomplete="current-password">
+  <div class="err-t" id="loginErr"></div>
+  <button class="btn btn-filled" id="loginBtn" style="margin-top:0">ログイン</button>
+  <a class="back" href="index.html">メニューに戻る</a>
+</section>
+
+<!-- 本体 -->
+<div id="appView" hidden>
+<header class="nav">
+  <div class="nav-in">
+    <a class="home-btn" href="index.html" aria-label="メニュー">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10.5V19h11v-8.5"/></svg>
+    </a>
+    <h1>入場QR</h1>
+  </div>
+</header>
+<main class="wrap">
+  <div class="card">
+    <div class="qr-box off" id="qrBox"><canvas id="qr" width="10" height="10" aria-label="ログイン用QRコード"></canvas></div>
+    <div class="left-k">このQRの残り時間</div>
+    <div class="left-v" id="left">--:--</div>
+    <div class="bar"><i id="bar"></i></div>
+    <div class="st" id="st">読み込み中…</div>
+  </div>
+  <p class="cap">レジ・キッチンの端末でホームを開き、「カメラでQRを読み取る」でこのQRを読むとログインできます。QRは15分ごとに自動で切り替わります。10分操作がないとこの画面はロックされます。</p>
+  <button class="btn btn-tinted" id="lockBtn">ロックする</button>
+</main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
+<script>
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2, '0');
+
+// ---------- パスワード（管理アプリ・定時点検とログイン状態を共有） ----------
+const LOCK_MS = 10 * 60 * 1000;                 // 10分操作がなければ自動ロック
+const K_KEY = 'churro_admin_key', K_SEEN = 'churro_admin_seen';
+function touch() { try { localStorage.setItem(K_SEEN, String(Date.now())); } catch (e) {} }
+const seenAt = () => { try { return Number(localStorage.getItem(K_SEEN) || 0); } catch (e) { return 0; } };
+let key = (() => {
+  try {
+    const k = localStorage.getItem(K_KEY) || '';
+    if (k && Date.now() - seenAt() > LOCK_MS) { localStorage.removeItem(K_KEY); return ''; }
+    return k;
+  } catch (e) { return ''; }
+})();
+
+// ---------- コードの取得（読み取りのみ。GASへの書き込みはしない） ----------
+// コードの文字列は変数にだけ持ち、画面・属性には出さない
+let code = '', expiresAt = 0, skew = 0, fetching = false;
+const now = () => Date.now() + skew;            // サーバ時計に合わせる
+/** 'ok' / 'auth' / 'net' */
+async function getCode(k) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000);
+  try {
+    const r = await fetch(GAS_URL + '?action=qrCode&key=' + encodeURIComponent(k) + '&t=' + Date.now(), { signal: ctl.signal });
+    const j = await r.json();
+    if (j && j.error === 'auth') return 'auth';
+    if (!j || !j.ok || typeof j.code !== 'string' || !/^[A-Za-z0-9]{8,64}$/.test(j.code)) return 'net';
+    if (Number(j.serverTime) > 0) skew = Number(j.serverTime) - Date.now();
+    expiresAt = Number(j.expiresAt) || 0;
+    if (j.code !== code) { code = j.code; draw(code); }
+    return 'ok';
+  } catch (e) { return 'net'; }
+  finally { clearTimeout(t); }
+}
+async function refresh() {
+  if (!key || fetching) return;
+  fetching = true;
+  const r = await getCode(key);
+  fetching = false;
+  if (r === 'auth') { logout('パスワードが違います。もう一度ログインしてください'); return; }
+  setSt(r === 'ok' ? '' : '通信できません。電波を確認してください', r !== 'ok');
+  tick();
+}
+function setSt(t, err) { const el = $('#st'); el.textContent = t; el.classList.toggle('err', !!err); }
+
+// ---------- QRの描画 ----------
+function draw(text) {
+  const box = $('#qrBox'), cv = $('#qr');
+  if (typeof qrcode !== 'function') { box.classList.add('off'); setSt('QRの生成機能を読み込めませんでした。再読み込みしてください', true); return; }
+  const q = qrcode(0, 'M'); q.addData(text); q.make();
+  const n = q.getModuleCount(), quiet = 4, cell = Math.max(4, Math.floor(880 / (n + quiet * 2))), size = cell * (n + quiet * 2);
+  cv.width = size; cv.height = size;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, size, size);
+  g.fillStyle = '#000';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect((c + quiet) * cell, (r + quiet) * cell, cell, cell);
+  box.classList.remove('off');
+}
+function hideQr() { code = ''; $('#qrBox').classList.add('off'); const cv = $('#qr'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); }
+
+// ---------- カウントダウン ----------
+let refetchedFor = 0;
+function tick() {
+  if (!key) return;
+  const left = expiresAt - now();
+  if (!expiresAt || !code) { $('#left').textContent = '--:--'; $('#bar').style.transform = 'scaleX(0)'; return; }
+  if (left <= 0) {                               // 期限切れ：古いQRは消して取り直す
+    hideQr(); $('#left').textContent = '00:00'; $('#bar').style.transform = 'scaleX(0)';
+    if (refetchedFor !== expiresAt) { refetchedFor = expiresAt; setSt('新しいQRに切り替えています…', false); setTimeout(refresh, 800); }
+    return;
+  }
+  const s = Math.ceil(left / 1000);
+  $('#left').textContent = pad(Math.floor(s / 60)) + ':' + pad(s % 60);
+  $('#left').classList.toggle('soon', s <= 60);
+  $('#bar').style.transform = 'scaleX(' + Math.min(1, left / (15 * 60 * 1000)) + ')';
+}
+
+// ---------- 画面を消灯させない（対応ブラウザのみ） ----------
+let wakeLock = null;
+async function keepAwake() {
+  try { if ('wakeLock' in navigator && !wakeLock && !document.hidden && key) {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } } catch (e) {}
+}
+
+// ---------- ログイン・ロック ----------
+function showApp() { $('#loginView').hidden = true; $('#appView').hidden = false; }
+function logout(msg) {
+  key = ''; try { localStorage.removeItem(K_KEY); localStorage.removeItem(K_SEEN); } catch (e) {}
+  hideQr(); expiresAt = 0;
+  try { if (wakeLock) wakeLock.release(); } catch (e) {}
+  $('#pass').value = ''; $('#appView').hidden = true; $('#loginView').hidden = false;
+  $('#loginErr').textContent = msg || '';
+}
+async function login() {
+  const k = $('#pass').value.trim(), err = $('#loginErr'), btn = $('#loginBtn');
+  if (!k) return;
+  if (!GAS_URL) { err.textContent = 'qr.html 内の GAS_URL を設定してください'; return; }
+  btn.disabled = true; err.textContent = '確認中…';
+  const r = await getCode(k);                    // パスワードの正否はサーバ（GAS）が判定する
+  btn.disabled = false;
+  if (r === 'ok') {
+    key = k; try { localStorage.setItem(K_KEY, k); } catch (e) {}
+    touch(); err.textContent = ''; $('#pass').value = ''; showApp(); setSt('', false); tick(); keepAwake();
+  } else { hideQr(); err.textContent = r === 'auth' ? 'パスワードが違います' : '通信できませんでした。電波とGASの更新を確認してください'; }
+}
+function checkLock() { if (key && Date.now() - seenAt() > LOCK_MS) logout('しばらく操作がなかったためロックしました'); }
+
+$('#loginBtn').addEventListener('click', login);
+$('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+$('#lockBtn').addEventListener('click', () => logout(''));
+['click', 'input', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { if (key) { touch(); keepAwake(); } }, { passive: true }));
+
+if (key) { touch(); showApp(); refresh(); keepAwake(); } else $('#loginView').hidden = false;
+setInterval(() => { checkLock(); tick(); }, 1000);
+setInterval(() => { if (!document.hidden) refresh(); }, 30000);          // 表示のズレ防止
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkLock(); refresh(); keepAwake(); } });
+</script>
+</body>
+</html>
